@@ -6,15 +6,24 @@ A private control room for your coding agents.
 
 Outpost is intended to run on your Linux host and be reachable from your Mac or phone through Tailscale. GitHub Issues contain the work specifications; a small planning-branch manifest determines order; the host executes through an existing agent such as Codex and retains the results.
 
-**Status:** Starter repository and implementation plan are ready. All 16 implementation tasks are published as GitHub Issues with real dependencies. The actual Go/React application is not implemented yet.
+**Status:** Working Go/Echo + React starter: embedded SPA, TanStack Router/Query, SQLite migrations, local development shell, Git/gh adapters and checks. Repository cloning, private Tailscale identity, installer and coding worker remain implementation tasks. All 16 tasks are published as GitHub Issues.
 
 ## Installation
 
-See [INSTALL.md](INSTALL.md) for the operator installation/first-run contract. The app and working installer remain implementation tasks; the guide clearly marks that status. Release installation, source building, host dependencies, one-time authentication, and Add repository are covered separately.
+See [INSTALL.md](INSTALL.md) for working source-build commands and the planned guided operator installer. Normal setup will reuse GitHub/Codex/Tailscale sign-ins; no copied API keys or new Outpost account.
+
+For local development, use Go 1.27.2, Node 24.19.0 and npm 11:
+
+```sh
+make setup
+make dev
+```
+
+Open `http://127.0.0.1:5173`. `make build` produces `bin/outpost`, with the UI embedded. See [docs/development.md](docs/development.md) for running that executable, checks and generator setup.
 
 ## Start implementation
 
-Begin with [issue #1 — OP-001](https://github.com/felixlheureux/outpost/issues/1). Read `AGENTS.md`, the specification, and the assigned issue before coding. The [live queue](https://github.com/felixlheureux/outpost/blob/outpost/queue/queue.json) is on the dedicated planning branch. Repository task files are reference snapshots; GitHub Issues contain current requirements.
+Read [docs/starter-handoff.md](docs/starter-handoff.md), `AGENTS.md`, the specification, and the assigned issue before coding. The next integration is [issue #2 — OP-002](https://github.com/felixlheureux/outpost/issues/2). The [live queue](https://github.com/felixlheureux/outpost/blob/outpost/queue/queue.json) is on the dedicated planning branch. Repository task files are reference snapshots; GitHub Issues contain current requirements.
 
 ## Start here
 
@@ -38,7 +47,7 @@ This flow is specified for implementation in issues #3–#6 and its execution be
 
 ## Chosen stack
 
-Go + Echo; React/TypeScript/Vite/Tailwind/shadcn; SQLite; SSE; user systemd; Tailscale. Vite builds static assets that are embedded in Go. A production Vite/Node dashboard server is not required. Git, Codex, Tailscale, systemd, and repository toolchains remain host prerequisites.
+Go + Echo; React/TypeScript/Vite/Tailwind/shadcn; TanStack Router + Query; SQLite; native Git + GitHub CLI. SSE, user systemd and Tailscale integration follow in later tasks. Vite builds static assets embedded in Go. A production Vite/Node dashboard server is not required. Git, gh, Codex, Tailscale, systemd, and repository toolchains remain host prerequisites for the finished product.
 
 ## Starter contents
 
@@ -69,4 +78,4 @@ JSON does not support comments. Explanations live beside the seed and in `docs/q
 
 ## Implementation status and release
 
-OP-001 establishes actual pinned dependencies and working build commands. Subsequent tasks connect real host, source, provider, and UI behavior. Do not add a nonfunctional CI workflow or claim release commands exist before they are implemented. License/publication policy remains the owner's choice; no license grant is invented here.
+Pinned dependencies and working source-build/check commands are committed. See [architecture](docs/architecture.md), [dependency decisions](docs/dependencies.md), and the [starter handoff](docs/starter-handoff.md). Subsequent tasks connect real host, source, provider, and UI behavior. There are no published release assets or working operator installer yet. License/publication policy remains the owner's choice; upstream component notices are preserved separately.

@@ -1,6 +1,9 @@
 # Generated UI/dependency/build output; source lockfiles remain committed.
 /web/node_modules/
 /web/dist/
+/web/test-results/
+/web/playwright-report/
+/web/.tanstack/
 /bin/
 /dist/
 /coverage/

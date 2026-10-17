@@ -1,6 +1,6 @@
 # Outpost — Implementation Tasks
 
-**Revision:** 0.3 · October 17, 2026 · Published to felixlheureux/outpost  
+**Revision:** 0.4 · October 17, 2026 · Published to felixlheureux/outpost
 **Target:** First usable personal release on a Linux host over Tailscale  
 **Companion specification:** [Outpost-Technical-Specification.md](Outpost-Technical-Specification.md)  
 **Interactive design reference:** [Outpost-UX-Reference.html](Outpost-UX-Reference.html)
@@ -12,6 +12,10 @@ Read the specification's confirmed decisions, authority model, and acceptance st
 The task files in `tasks/` retain stable `OP-xxx` planning IDs. All 16 tasks are now published in [felixlheureux/outpost](https://github.com/felixlheureux/outpost/issues); `issue-map.json` records their actual issue identities. The live `queue.json` is on `outpost/queue` and uses real issue numbers. These repository task files and this document are published reference snapshots; update GitHub Issues for current requirements and the planning branch for current order.
 
 If the repository already contains implementation, inspect it and its `AGENTS.md`/documentation first. Reuse working code, mark demonstrated acceptance, and implement the remaining behavior. This package does not claim every component must be rewritten or that an empty repository exists.
+
+## Starter implementation status
+
+OP-001 is implemented and locally verified; see [docs/starter-handoff.md](docs/starter-handoff.md). Continue with OP-002. The shell uses TanStack Router/Query; native Git and authenticated gh reuse existing logins. Normal installation must not require copied API keys, a PAT, GitHub OAuth app registration or an Outpost account. OP-002/003 task snapshots include this latest integration requirement. The original acceptance contracts below remain reference snapshots; GitHub Issues own current task requirements.
 
 ## Published issue map
 

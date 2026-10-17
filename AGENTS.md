@@ -1,10 +1,11 @@
 # Agent instructions for Outpost
 
-Outpost is a small personal control room for coding agents on one Linux host. Read `Outpost-Technical-Specification.md` for the product contract, `Outpost-Implementation-Tasks.md` for the ordered backlog, and `Outpost-UX-Reference.html` for the interactive design reference. Inspect existing code before changing it; this starter does not yet contain the Go/React implementation.
+Outpost is a small personal control room for coding agents on one Linux host. Read `Outpost-Technical-Specification.md` for the product contract, `Outpost-Implementation-Tasks.md` for the ordered backlog, and `Outpost-UX-Reference.html` for the interactive design reference. A working Go/React starter now exists; inspect it before adding another convention. Read `docs/architecture.md`, `docs/dependencies.md`, and `docs/development.md` for the current implementation boundaries and commands.
 
 ## Architecture and scope
 
 - Go + Echo backend. React/TypeScript/Vite/Tailwind/shadcn SPA compiled into the Go executable. Vite/Node are development/build dependencies, not production dashboard servers.
+- TanStack Router owns typed file routes/URL state; TanStack Query owns server data. Reuse the one QueryClient. Native Git handles checkouts; authenticated `gh api` handles GitHub. Normal setup reuses CLI sign-ins and requires no copied API keys, GitHub app, or Outpost account.
 - SQLite owns local execution state, cached source observations, immutable assignments, and receipts. Private artifacts/logs live outside coding workspaces.
 - GitHub Issues own task requirements. One `queue.json` on `outpost/queue` owns queue membership/order. No second rank field, generated task-file queue, or local-only order is authoritative.
 - Repository onboarding is Add repository → GitHub URL → managed host clone → source setup → Queue. Keep Add another repository available from the first project. Existing checkout is advanced, not the default.
@@ -42,7 +43,7 @@ Preserve immutable prompts/source snapshots/terminal receipts. Editing a pending
 
 ## Verification without repeated full gates
 
-Inspect `docs/development.md` and the actual project commands once OP-001 establishes them. The starter intentionally does not invent build commands for code that does not exist.
+Inspect `docs/development.md` and the actual Makefile. `make setup`, `make dev`, `make check`, `make build`, and `make smoke` exist. sqlc-generated Go and the generated Router tree are committed; do not hand-edit them. The ordinary build uses committed SQL output, while SQL changes require pinned regeneration.
 
 Format and generate before final acceptance. During changes, run focused tests for behavior at risk. Run required broader gates on stable relevant inputs. Do not repeat an unchanged full suite because a formatter made no change or only documentation, queue order, evidence notes, or display state changed. Actual relevant code/config/fixture/contract changes invalidate affected evidence.
 

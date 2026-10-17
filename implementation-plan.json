@@ -26,7 +26,7 @@
       "order": 1,
       "depends_on": [],
       "path": "tasks/OP-001-bootstrap-the-standalone-executable-and-embedded-spa.md",
-      "state": "published",
+      "state": "completed",
       "github_issue": 1,
       "issue_url": "https://github.com/felixlheureux/outpost/issues/1",
       "github_dependencies": []

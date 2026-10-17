@@ -1,6 +1,6 @@
 ---
 planning_id: OP-001
-status: published
+status: completed
 order: 1
 depends_on: []
 source: bootstrap-handoff
@@ -40,15 +40,20 @@ Unsupported newer schema fails clearly. A half-built frontend cannot pass the pa
 
 ### Acceptance criteria
 
-- [ ] A clean documented command produces the executable and actual UI assets.
-- [ ] Launching that executable without a dashboard Node/Vite process serves UI and API.
-- [ ] A direct frontend-route refresh succeeds while missing API/assets remain 404.
-- [ ] Fresh migrations apply to a temporary SQLite database and reject an unsupported schema.
-- [ ] Typecheck, production build, and a release-binary HTTP smoke check pass.
+- [x] A clean documented command produces the executable and actual UI assets.
+- [x] Launching that executable without a dashboard Node/Vite process serves UI and API.
+- [x] A direct frontend-route refresh succeeds while missing API/assets remain 404.
+- [x] Fresh migrations apply to a temporary SQLite database and reject an unsupported schema.
+- [x] Typecheck, production build, and a release-binary HTTP smoke check pass.
 
-- [ ] INSTALL.md contains the actual working source-build sequence and clearly separates build tools from release runtime prerequisites.
-- [ ] A clean-checkout build yields the binary used by the host installer without a runtime Vite server.
+- [x] INSTALL.md contains the actual working source-build sequence and clearly separates build tools from release runtime prerequisites.
+- [x] A clean-checkout build yields the binary used by the host installer without a runtime Vite server.
 
 ### Verification and handoff
 
 Use one focused routing/migration integration test and one embedded-binary smoke journey. Report executable size and idle memory only if actually measured, with the environment stated. Handoff includes build commands, state-path convention, API-error shape, migration ownership, and where later services plug into the shell.
+
+
+### Starter completion
+
+Implemented and locally verified. See docs/starter-handoff.md for exact behavior, toolchains, clean-source build/browser evidence, binary size and remaining host acceptance. bin/outpost is the verified local input for OP-002; the installer itself remains that issue’s work. TanStack Router is the one router. Git/gh reuse existing host credentials; no separate API-key setup is required.

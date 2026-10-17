@@ -1,6 +1,6 @@
 # Install and onboard Outpost
 
-**Status:** Operator guide and implementation contract. The application, release assets, and working installer are still being built. The commands below describe the required delivered flow; do not treat them as an available release today. Issues #1, #2, #8, and #16 must replace planned details with verified working commands and supported versions before release acceptance.
+**Status:** The source-build/local-preview instructions below work for the starter. Release assets, the guided installer, private Tailscale identity and worker are still being built. The release-install sections are the implementation contract for issues #2, #8 and #16; their planned commands are not available yet.
 
 ## Choose release installation or source build
 
@@ -29,7 +29,7 @@ No download URL, artifact name, or bootstrap flag is invented in this starter. O
 
 The installer must inspect before changing anything, reuse compatible tools, and show the missing prerequisites and scoped installation action:
 
-- Git and required system packages.
+- Git, official GitHub CLI (`gh`), and required system packages.
 - User systemd manager and boot/linger requirements for the selected installation user.
 - Tailscale CLI/daemon and available private Serve route.
 - Supported official Codex distribution and its actual runtime dependencies.
@@ -43,7 +43,7 @@ The installer guides these human steps only when they are missing:
 
 1. Sign the host into the intended Tailscale network and select the allowed operator identity.
 2. Authenticate the actual Codex installation using its supported flow.
-3. Configure the host GitHub credential reference with access to the repositories you intend to clone, their issues, and the planning branch/file.
+3. Reuse the host’s authenticated GitHub CLI, or guide `gh auth login --hostname github.com --web --git-protocol https` followed by `gh auth setup-git`. Verify repository, issue and planning-file access. No copied PAT, GitHub OAuth app registration, or Outpost account is required. Preserve an existing SSH configuration unless the operator chooses to change it.
 
 Already valid sessions are reused. Tokens/passwords are not written into public configuration output, URLs, process arguments, or logs. The ChatGPT GitHub connection used for remote reviews is distinct from the host credentials used by Outpost.
 
@@ -86,16 +86,22 @@ Adding a repository authorizes setup; **Start** authorizes coding. Check effecti
 
 ## Build and install from source
 
-OP-001 must document the actual supported toolchain versions and tested commands here and in `docs/development.md`. The required sequence is:
+Use Go **1.27.2**, Node **24.19.0**, npm **11.x**, Git and Make. Versions are pinned in go.mod, .node-version and the package lockfile. Python 3 and a Playwright browser are only needed for the browser smoke check. sqlc **1.31.1** is needed only when changing SQL; generated Go is committed.
 
-1. Install/use the pinned supported Go and frontend Node/package-manager toolchains.
-2. Clone this repository and install frontend dependencies from the committed lockfile.
-3. Run required generation using the project's documented commands.
-4. Build the frontend's static distribution.
-5. Compile the Go executable with that distribution and migrations embedded.
-6. Run the same installer with the built executable; do not maintain a second source-only service/configuration path.
+```sh
+git clone https://github.com/felixlheureux/outpost.git
+cd outpost
+make setup
+make build
+./bin/outpost migrate
+./bin/outpost serve --dev
+```
 
-The starter intentionally supplies no fake `make` target or guessed package-manager invocation. Before source-build acceptance, OP-001 must replace this sequence with exact commands proven from a clean checkout.
+Open **http://127.0.0.1:7331** on the same machine. This is a local preview, with no production identity. The Go executable serves the actual built UI/API without Vite or Node. State defaults to `$XDG_STATE_HOME/outpost` or `~/.local/state/outpost` with private permissions; `--state-dir /absolute/private/path` overrides it for both migrate and serve. `serve` never silently migrates. To develop with hot frontend refresh, use `make dev` and open http://127.0.0.1:5173.
+
+`./bin/outpost doctor` checks installed Git plus existing GitHub/Codex/Tailscale access and reports missing steps. Optional `--repo https://github.com/owner/repo` checks repository read access. These checks do not install anything, prove write permissions, configure Serve, or establish worker readiness. No authentication is needed to build or view the local empty shell.
+
+Do not expose development mode through a proxy or public listener. Production `serve`, `install`, worker and status are deliberately unavailable until OP-002 implements the private boundary and lifecycle. The built binary is that task’s installer input; a separate source-only service architecture is unnecessary. See docs/development.md for checks and docs/dependencies.md for the sign-in contract.
 
 ## Diagnostics and common setup problems
 

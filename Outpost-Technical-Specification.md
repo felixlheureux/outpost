@@ -1,7 +1,7 @@
 # Outpost — Product and Technical Specification
 
 **Description:** A private control room for your coding agents.  
-**Version:** 0.3 specification — host installation, managed repository onboarding, and multiple-project operation  
+**Version:** 0.4 specification — working starter, simple CLI sign-in, host installation and multiple projects
 **Date:** October 17, 2026  
 **Owner:** Félix L’Heureux  
 **Target:** A personal GitHub repository and a dedicated Linux machine accessed through Tailscale.
@@ -162,8 +162,9 @@ Tailscale’s daemon, Git, agent CLIs, and repository toolchains remain installe
 | SQLite driver | modernc.org/sqlite | CGO-free SQLite integration |
 | Query generation | sqlc | Typed Go query code generated from SQL |
 | Migrations | Goose library | Embedded, versioned SQL migrations |
-| Input validation | go-playground/validator | API request constraints through Echo’s validation hook |
-| systemd integration | coreos/go-systemd/v22/dbus | User-instance connections and transient-unit lifecycle |
+| Input validation | Explicit request DTO checks; validator only if needed | Invoke validation at the API boundary; domain constraints stay in services |
+| Git and GitHub | Native Git + authenticated official `gh` CLI | Checkout operations versus GitHub API; reuse existing login without copied keys |
+| systemd integration | coreos/go-systemd/v22/dbus when OP-002 needs it | User-instance connections and transient-unit lifecycle |
 | CLI | Cobra | serve, worker, install, doctor, and operational commands |
 | Logging | log/slog | Structured process diagnostics |
 | Assets | embed and io/fs | Embedded frontend and migration files |
@@ -184,10 +185,11 @@ Use:
 - Vite for local development and production compilation.
 - Tailwind CSS and shadcn/ui for components and styling.
 - TanStack Query for server data, mutations, and cache invalidation.
-- A client router for project/task/run URLs.
+- TanStack Router with typed file routes for project/task/run URLs and validated URL state.
+- Zod for runtime validation of HTTP response contracts.
 - The browser’s EventSource API for the SSE connection.
 
-A small routing library is sufficient; select and pin one supported React router when scaffolding. A server-rendering framework is unnecessary for this application.
+Use the same QueryClient in Router context; route preloading calls Query rather than maintaining a second data authority. Vite generates the route tree and splits routes at build time. TanStack Start and server rendering are unnecessary. Current dependency and setup decisions are recorded in docs/dependencies.md; exact versions are pinned in the manifests/lockfile.
 
 Use component state for temporary interaction state and TanStack Query for server state. Avoid keeping independent, competing copies of task/run data in several frontend stores.
 
@@ -337,7 +339,7 @@ A project contains:
 - Canonical Git common-directory identity.
 - Git repository URL/owner/name and intended delivery remote/branch.
 - GitHub task repository, planning branch (default `outpost/queue`), and manifest path (default `queue.json`).
-- GitHub credential reference, refresh policy, and completion-report/issue-closing policy.
+- Active host GitHub CLI account/credential context, refresh policy, and completion-report/issue-closing policy. Reuse gh authentication; no API-key copying in normal setup.
 - Default agent and discovered model choice.
 - Reasoning setting and provider execution-permission settings.
 - Default task/check/delivery/review policy.
@@ -1496,7 +1498,7 @@ Use Linux XDG conventions:
 | Executable | Operator-selected user bin directory or release path |
 | Managed repository workspaces | Configured private workspace root, default ~/.local/share/outpost/workspaces/ |
 
-The config can contain listener, public origin, allowed logins, state directory, prerequisite executable overrides, and private GitHub credential references. Project execution defaults belong in SQLite; issue requirements and queue order retain their GitHub authority.
+The config can contain listener, public origin, allowed logins, state directory, prerequisite executable overrides, and the host GitHub CLI account context. Normal setup does not introduce an Outpost token field or GitHub OAuth app registration. Project execution defaults belong in SQLite; issue requirements and queue order retain their GitHub authority.
 
 Avoid a growing environment-variable configuration framework. JSON plus explicit CLI overrides is enough for the first release.
 
@@ -1546,11 +1548,11 @@ Restore is an explicit idle-host action. Keep the pre-restore state until the re
 
 Ship an operator-facing INSTALL.md and a working scripts/install.sh release bootstrap. The bootstrap selects a supported real release artifact, verifies the published checksum, and hands installation/configuration to the single canonical `outpost install` implementation. Support an explicitly supplied local built executable for development/offline acceptance before public assets exist. No duplicated script/Go service-configuration paths or placeholder download commands count as a completed installer.
 
-Initial automated dependency support targets the owner's Linux/systemd host; implementation default is the Debian/Ubuntu family, with verified distro versions/architectures recorded in the release guide. Inspect Git, Tailscale daemon/CLI, user-systemd requirements, actual Codex distribution/runtime, writable private paths, and GitHub/provider access. Reuse compatible installed tools. Show missing prerequisites and scoped package-manager actions, requesting local privilege only where needed; services remain unprivileged. Unsupported or failed installs have exact manual remedies.
+Initial automated dependency support targets the owner's Linux/systemd host; implementation default is the Debian/Ubuntu family, with verified distro versions/architectures recorded in the release guide. Inspect Git, official GitHub CLI (gh), Tailscale daemon/CLI, user-systemd requirements, actual Codex distribution/runtime, writable private paths, and GitHub/provider access. Reuse compatible installed tools. Show missing prerequisites and scoped package-manager actions, requesting local privilege only where needed; services remain unprivileged. Unsupported or failed installs have exact manual remedies.
 
 Release installation does not require Go or a dashboard Node/Vite server. Source building requires the supported Go/Node/package-manager toolchains and a documented frontend-before-Go sequence. A provider distribution may independently require Node or another runtime; identify this truthfully. Repository-specific build tools/dependencies are a per-project execution/setup concern, not a reason to install every possible language globally or run target-repository scripts during Add repository.
 
-Guide Tailscale sign-in/allowed identity, actual Codex authentication, and the host GitHub credential reference with repository access. Reuse existing authorized sessions and stop at genuine human authentication/permission requirements. Never fabricate success, copy browser-session tokens, or log credentials. Missing authentication is resumable and visible in doctor/setup state.
+Guide Tailscale sign-in/allowed identity, actual Codex account sign-in, and the host GitHub CLI browser/device login with repository access. Use gh auth setup-git when HTTPS Git needs its credential helper; preserve existing SSH choices. No copied PAT, API key, new GitHub OAuth app or Outpost account is required for the normal path. Reuse existing authorized sessions and stop at genuine human authentication/permission requirements. Never fabricate success, copy browser-session tokens, or log credentials. Missing authentication is resumable and visible in doctor/setup state.
 
 Create private config/state/workspace paths, apply migrations while idle, install/start user units, handle boot/linger deliberately, preserve existing Serve routes, and verify the printed private HTTPS UI/API address. Finish with clear doctor/status results and the dashboard URL. A fresh UI hands off to Add repository, then managed clone/source setup; adding a project does not start coding.
 
@@ -1630,7 +1632,7 @@ A drained Follow queue run does not become a permanent daemon waiting for future
 
 ### 26.8 GitHub credentials and mutation boundaries
 
-Use an operator-configured host credential reference with the minimum repository permissions needed for issue reads/edits, queue-file writes, and configured reporting. Never send tokens to the browser, issue body, artifacts, or diagnostic output. Source credentials are distinct from provider credentials.
+Reuse the active host user’s official gh authentication for issue reads/edits, queue-file writes, and configured reporting. Verify the intended account and required repository permissions. Native Git uses the host’s existing SSH or gh credential helper; do not copy a token into Outpost configuration. Never send tokens to the browser, issue body, artifacts, or diagnostic output. Source credentials are distinct from provider credentials.
 
 Repository instructions and issue bodies are task inputs, not authority to change access policy, install credentials, or run arbitrary new check commands. Backend mutations remain subject to the existing Tailscale/origin/CSRF boundary.
 

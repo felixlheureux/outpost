@@ -53,3 +53,8 @@ Cover inaccessible/private/renamed repositories, invalid URL, empty repository/n
 ### Verification and handoff
 
 Use disposable local Git clone fixtures behind a narrow repository-source seam to verify staging, identity, retries, and interruption without a model. Use one integrated browser journey starting empty and adding/switching two fixture-backed repositories after OP-004/005. Separately label actual public/private GitHub account acceptance. Handoff includes setup-operation/project/readiness DTOs, retry semantics, managed ownership, source-phase integration, and project/current-run selection rules.
+
+
+### Starter integration and simple authentication
+
+Read docs/starter-handoff.md, docs/architecture.md and docs/dependencies.md. The embedded Go/React foundation already exists. Extend it rather than regenerating the application. Use native Git for checkouts and the existing internal/githubcli adapter for authenticated gh API calls. Normal installation reuses `gh auth login --hostname github.com --web --git-protocol https`, `gh auth setup-git` where appropriate, Codex account sign-in, and Tailscale sign-in. Do not require copied API keys, a PAT, GitHub OAuth app registration, or an Outpost account. Reuse valid sessions and preserve existing SSH choices. Run setup as the eventual ordinary service user; verify that its credential store works in that service environment. Human sign-in remains a guided resumable step. Do not try to open login dialogs from a background HTTP command.

@@ -18,8 +18,9 @@ intended default branch. Issue forms become available from GitHub after their fi
 are present on the default branch. An initial commit must exist before a planning
 branch can be created.
 
-No Go module, lockfile, executable, or CI gate is faked here. OP-001 establishes
-actual supported dependency versions and working development/release commands.
+The Go module, frontend lockfile, application starter and CI gate now exist. See
+docs/development.md for verified source build/check commands and INSTALL.md for
+the separate operator installation contract.
 Select a license/publication policy deliberately before representing reuse rights.
 
 ## Initialize the separate queue
@@ -59,7 +60,7 @@ VibeEasy or another unrelated repository as a substitute.
 
 ## Implement and install
 
-Start OP-001, reuse demonstrated existing behavior, and proceed through ready
+Read docs/starter-handoff.md, reuse demonstrated existing behavior, and proceed through ready
 dependencies. OP-002 establishes the real private host path. Complete real owner
 acceptance before replacing the old runner. Preserve the old installation and
 unfinished work until the cutover is accepted.

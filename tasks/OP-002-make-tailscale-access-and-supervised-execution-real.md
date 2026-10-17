@@ -64,3 +64,8 @@ Browser disconnection proves nothing about worker state. A successful systemd jo
 ### Verification and handoff
 
 Use deterministic local process fixtures for ownership races, then a real Linux user-systemd/Tailscale smoke journey. Label unavailable host checks explicitly. Handoff exposes the supervisor interface, reservation lifecycle, process identity receipt, and current liveness projection for the scheduler and UI.
+
+
+### Starter integration and simple authentication
+
+Read docs/starter-handoff.md, docs/architecture.md and docs/dependencies.md. The embedded Go/React foundation already exists. Extend it rather than regenerating the application. Use native Git for checkouts and the existing internal/githubcli adapter for authenticated gh API calls. Normal installation reuses `gh auth login --hostname github.com --web --git-protocol https`, `gh auth setup-git` where appropriate, Codex account sign-in, and Tailscale sign-in. Do not require copied API keys, a PAT, GitHub OAuth app registration, or an Outpost account. Reuse valid sessions and preserve existing SSH choices. Run setup as the eventual ordinary service user; verify that its credential store works in that service environment. Human sign-in remains a guided resumable step. Do not try to open login dialogs from a background HTTP command.
