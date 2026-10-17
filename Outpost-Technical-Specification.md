@@ -1,7 +1,7 @@
 # Outpost — Product and Technical Specification
 
 **Description:** A private control room for your coding agents.  
-**Version:** 0.2 specification — GitHub planning, shared queue, and operational UX  
+**Version:** 0.3 specification — host installation, managed repository onboarding, and multiple-project operation  
 **Date:** October 17, 2026  
 **Owner:** Félix L’Heureux  
 **Target:** A personal GitHub repository and a dedicated Linux machine accessed through Tailscale.
@@ -84,7 +84,8 @@ Details marked **implementation default** are concrete engineering choices suppl
 | Operator control | Start, stop after task, stop now, steer, resume, retry with instructions |
 | Task management | GitHub issue creation/editing, Inbox, ordered Queue, dependencies, holds, eligibility, and execution history |
 | Default queue mode | Follow the shared queue between tasks, within a recorded task/runtime budget; fixed scope is optional |
-| Main navigation | Queue, Work, History; project settings and connection diagnostics are secondary |
+| Main navigation | Queue, Work, History; project menu provides Add repository and project switching |
+| Repository onboarding | Zero-project Add repository screen; paste GitHub URL, managed host clone, source setup, then Queue; existing checkout is advanced |
 | Validation | Runner-owned check receipts and bounded repair; avoid redundant full gates |
 | Git delivery | Configurable by project rather than universally requiring push |
 | Completion review | Optional project policy; unattended execution is supported |
@@ -97,9 +98,9 @@ FastAPI, Django Ninja, and a Go standard-library-only HTTP application were cons
 
 The release must support:
 
-1. Installation and service management on one Linux machine.
+1. Documented release/source installation, scoped host dependency setup, guided authentication, diagnostics, and service management on one Linux machine.
 2. A Tailscale Serve access path and an allowed operator identity.
-3. Multiple registered repositories, each with its own settings and execution workspace.
+3. Add repository by GitHub URL, host-managed cloning and source setup, then add/switch multiple projects with isolated settings/workspaces/history.
 4. One active execution slot across the installation as an implementation default.
 5. GitHub issue creation/editing, unqueued Inbox, dependencies, holds, and manifest ordering.
 6. Import of existing VibeEasy task definitions and a general Markdown import/export format.
@@ -269,8 +270,8 @@ An attempt that fails does not delete its task. A completed provider turn does n
 1. Install the release executable and run `outpost install` on the Linux host.
 2. Inspect user-systemd, Tailscale, Git, Codex, state-directory, and GitHub-access diagnostics.
 3. Choose the allowed Tailscale login and inspect existing Serve routes before configuring the private address.
-4. Register an existing checkout, repository identity, checks, and delivery policy.
-5. Configure the GitHub issue repository and planning branch/path. Preview explicit planning-branch creation if it does not exist.
+4. Open the empty application and choose Add repository. Paste a GitHub repository URL; Outpost clones it onto the Linux host under its managed workspace root. An existing local checkout is an advanced alternative.
+5. Watch inspection, cloning, and configuration. Reuse the existing planning queue or initialize a missing planning branch/file as part of this explicit setup action; inherit defaults and show any meaningful missing policy/access. Successful integrated setup opens that project’s Queue.
 6. Verify issue reads, queue-file reads/writes, Codex authentication, and the actual HTTPS address.
 7. Run one small real task before enabling a longer follow-queue run.
 
@@ -346,15 +347,35 @@ A project contains:
 - Project-level operator instructions.
 - Archived state and timestamps.
 
-Registering a project inspects its repository. It does not clone, reset, switch branches, rewrite remotes, or sign into an agent without an explicit setup action.
+Add repository is the normal setup action: the operator supplies a GitHub repository URL and authorizes a dedicated managed clone plus source initialization. Resolve stable repository identity, then select a host-owned destination rather than accepting an arbitrary URL-derived path. Reuse existing repository instructions and recorded settings. Provider login and repository scripts are not run implicitly; missing credentials or unresolved execution policy become actionable readiness reasons. Advanced Use an existing checkout registers and inspects its current Git state without cloning/resetting it.
 
 ### 9.2 Workspace policy
 
-v0.1 uses a dedicated execution checkout per project, selected by the operator. Tasks in a sequential batch share that checkout and branch. This lets dependent tasks see predecessor changes without requiring an automatic merge after every task.
+v0.1 defaults to one Outpost-managed execution checkout per GitHub repository/project. The installation chooses a stable project-ID directory under its configured private workspace root; the UI does not require a local path. An explicitly selected existing checkout is an advanced mode with operator ownership preserved. Tasks in a sequential batch share that checkout and branch. This lets dependent tasks see predecessor changes without requiring an automatic merge after every task.
 
 The application must detect aliases that point to the same checkout. Two project records must not bypass exclusion by referring to the same directory through different paths.
 
 The execution slot is global in v0.1. This is a deliberate simplification, not an assertion that simultaneous work is impossible. Workspace locks remain necessary because another CLI or process can edit the same checkout outside Outpost.
+
+### 9.2.1 Managed clone and setup lifecycle
+
+With zero projects, show Add repository as the primary action. Accept a normal GitHub HTTPS repository URL (optional `.git` suffix), resolve the actual repository identity, and reject unsupported hosts/protocols, embedded credentials, and ambiguous non-repository paths. Use controlled Git argv and private host credentials; never expose tokens in URLs, argv, progress, or logs.
+
+Persist a stable project/setup-operation identity before side effects. Clone into operation-owned staging beneath the installation's managed workspace root, observe real bounded progress, and publish/register a complete checkout atomically. States distinguish inspecting, cloning, configuring, ready, needs_attention, and interrupted. A setup record is not a coding run or provider session.
+
+Repeated requests, URL/case aliases, duplicate clicks, and reconnect return the same project or setup operation. A return visit reuses the checkout. Recover/reconcile owned clone processes and completed phases before retrying; a successful clone with failed source initialization is retained. Cleanup is confined to proven operation-owned partial staging, never a registered or operator-owned checkout.
+
+After cloning, read instructions/manifests, infer the stack/default branch, inherit installation defaults, connect Issues, and reuse an existing planning queue. Create a missing planning branch/file through GitHub APIs as a phase of the explicit Add repository operation when access/base commit allow. Preserve existing queue content and main-branch files. The normal flow requires neither target main-branch changes nor the developer's setup helper.
+
+Adding a repository authorizes setup. It does not start coding or execute discovered dependency/build scripts. Uncertain check commands are suggestions resolved in the first-start/settings flow, not claimed verified policy. Missing private access, no initial branch, disk/network failure, and inaccessible/invalid source have specific retryable explanations. The phone can reconnect to the same setup operation.
+
+### 9.2.2 Multiple-project selection and one coding slot
+
+From the first project onward, the current-project menu includes Add repository. When more projects exist it also switches between them. A successful add opens the new project's Queue after required source setup, or its actionable setup screen if something remains unresolved.
+
+Each project keeps its own checkout, queue/Inbox, settings, history, saved conversations, selection, and drafts. Browsing B while A executes leaves A's assignment/worker/message targets untouched; the global run bar identifies A and provides Open work. Changing selection never starts/stops work or automatically transfers a draft.
+
+Repository setup uses bounded host work and may clone B in a different destination while one coding task runs in A. It creates no additional permanent coding runner. Starting B's coding work requires the single global execution slot. After A is deliberately stopped and all owned coding/check processes/effects are safely settled, B may run while A's unfinished checkout remains preserved for explicit later recovery. A surviving owned process keeps the slot reserved. Draining a project queue never automatically jumps to another project.
 
 ### 9.3 Git worktrees
 
@@ -920,7 +941,8 @@ The following is the logical schema. The exact SQL belongs in versioned Goose mi
 
 | Table | Important fields and purpose |
 | --- | --- |
-| projects | id, name, canonical_workspace, git_common_dir, revision, settings_json, archived_at, timestamps |
+| projects | id, name, repository_id, workspace_ownership, canonical_workspace nullable until setup, git_common_dir, setup_state, revision, settings_json, archived_at, timestamps |
+| project_setup_operations | id, project_id, normalized_repository_identity, idempotency_key, stage, owned_staging/process identity, completed phases, source receipts, outcome, timestamps |
 | tasks | id, project_id, repository_id, issue_node_id, issue_number, issue_url, cached_title/body/settings, source_digest, source_state, execution_generation, local_state, local_revision, timestamps |
 | source_observations | project_id, manifest_branch/path/blob_sha, ordered_issue_ids, source_health, issue digests, fetched_at; cached observations, never queue authority |
 | github_operations | operation_id, project_id, kind, target, expected_source, payload_digest, state, remote_receipt, error, timestamps; narrow durable mutation/reporting receipts |
@@ -942,7 +964,7 @@ Local record IDs use prefixed cryptographically random identifiers. Issue number
 
 At minimum enforce:
 
-- Unique canonical project workspace identity.
+- Unique active project repository identity and canonical workspace identity; duplicate adds resolve to the existing project/setup operation.
 - Unique project/repository/issue identity and source revision identity.
 - Unique dependency edge and no self-dependency.
 - One reserved execution slot.
@@ -1015,7 +1037,9 @@ A rejected mutation leaves its input available in the browser. An uncertain exte
 | --- | --- | --- |
 | GET | /api/v1/bootstrap | Operator identity, CSRF token, current run, capabilities, application version |
 | GET | /api/v1/projects | List projects |
-| POST | /api/v1/projects | Register an existing repository |
+| POST | /api/v1/projects | Add by GitHub URL (default managed clone) or advanced existing checkout; return project and setup-operation receipt |
+| GET | /api/v1/projects/:projectId/setup | Setup stages, actual progress, completed phases, and blockers |
+| POST | /api/v1/projects/:projectId/setup/controls | Idempotent retry/cancel/reconcile of owned setup; never a coding start |
 | GET | /api/v1/projects/:projectId | Project summary and settings |
 | PATCH | /api/v1/projects/:projectId | Update settings with expected revision |
 | POST | /api/v1/projects/:projectId/archive | Archive an idle project |
@@ -1202,9 +1226,9 @@ If disk/database writes fail, stop issuing new work and report the storage failu
 
 ### 21.1 Navigation and landing behavior
 
-Use three main destinations: **Queue**, **Work**, and **History**. A project selector belongs in application chrome when multiple projects exist; omit a single-option picker. Project settings and Connection/host diagnostics are secondary destinations, not more primary navigation items.
+Use three main destinations: **Queue**, **Work**, and **History**. With no projects, show a focused Add repository screen with a GitHub URL field and Add action. From the first project onward, the current-project menu in application chrome includes Add repository; list other projects for switching when present. Even a one-project installation must keep Add another repository reachable. Project settings and Connection/host diagnostics are secondary destinations, not more primary navigation items.
 
-Open Work by default when a current run is active or needs operator attention. Open Queue when idle. Honor an explicit deep link or deliberate navigation. Switching projects never silently retargets current-run controls; the global run bar names the project that owns execution and offers Open work.
+During setup show the observed inspection/clone/configuration stage and relevant retry; successful integrated setup lands in that new project’s Queue. On ordinary application return, open Work by default when a current run is active or needs operator attention. Open Queue when idle. Honor an explicit deep link or deliberate navigation. Switching projects never silently retargets current-run controls; the global run bar names the project that owns execution and offers Open work.
 
 On desktop use a narrow sidebar and one main content area. Avoid a dashboard landing page filled with activity counters. The app must answer: what is running, what happens next, what needs me, and what evidence exists?
 
@@ -1282,7 +1306,7 @@ Offer saved-session resume only when capability and identity are known. A fresh 
 
 History lists actual runs including startup failures, interrupted attempts, and continuations. A historical view preserves original outcomes and receipts. Earlier attempts cannot control a newer attempt implicitly; provide Open current work.
 
-Project settings collect workspace, GitHub repository/queue configuration, agent defaults, checks, and delivery policy. Connection shows the private address, allowed identity, host/service observations, and source/provider health. Closing a tab does not stop execution.
+Project settings collect managed-versus-existing workspace information, GitHub repository/queue configuration, agent defaults, checks, and delivery policy. Normal Add repository requires only its GitHub URL plus meaningful unresolved choices, not a local path or manual clone. Connection shows the private address, allowed identity, host/service observations, and source/provider health. Closing a tab does not stop execution.
 
 ### 21.11 Responsive and visual requirements
 
@@ -1447,7 +1471,7 @@ Agent CLIs and repository tasks may independently need Node, Python, Docker, or 
 | --- | --- |
 | outpost serve | Start the web service |
 | outpost worker --run-id ID | Execute one recorded run; internal/systemd entry point |
-| outpost install | Configure paths, user service, and selected Tailscale route |
+| outpost install | Inspect/install supported host prerequisites, guide authentication, configure private paths/service/Serve, and verify the dashboard URL |
 | outpost doctor | Inspect installation, provider, workspace, and service prerequisites |
 | outpost run --project ID | Start a run through the same admission services |
 | outpost status | Show current run and known liveness |
@@ -1470,6 +1494,7 @@ Use Linux XDG conventions:
 | Optional disposable cache | ~/.cache/outpost/ |
 | User systemd unit | ~/.config/systemd/user/outpost.service |
 | Executable | Operator-selected user bin directory or release path |
+| Managed repository workspaces | Configured private workspace root, default ~/.local/share/outpost/workspaces/ |
 
 The config can contain listener, public origin, allowed logins, state directory, prerequisite executable overrides, and private GitHub credential references. Project execution defaults belong in SQLite; issue requirements and queue order retain their GitHub authority.
 
@@ -1483,6 +1508,7 @@ Avoid a growing environment-variable configuration framework. JSON plus explicit
   "public_origin": "https://your-machine.your-tailnet.ts.net",
   "allowed_logins": ["your-login@example.com"],
   "state_dir": "/home/your-user/.local/state/outpost",
+  "workspaces_dir": "/home/your-user/.local/share/outpost/workspaces",
   "access_mode": "tailscale-serve"
 }
 ~~~
@@ -1507,11 +1533,28 @@ A simple web-process restart must leave a separate worker alive. Replacing the e
 
 ### 25.5 Backups
 
+Managed checkouts can contain unpublished commits and unfinished edits. Backups must preserve that local-only work and project/operation ownership alongside the database/artifacts/config; GitHub is not a backup of unpushed files. Avoid recloning over a restored active/unfinished checkout.
+
+
 The first release may require an idle installation for backup. Hold exclusive maintenance ownership, reject new admissions, confirm no worker/check remains, and use a SQLite-aware backup or a properly quiescent/checkpointed database copy.
 
 Do not copy only the main database file while ignoring an active WAL. Include the artifact manifest and retained artifacts, application version/schema version, and the private installation configuration needed to restore access. Preserve permissions and keep credentials belonging to Codex/Git/Tailscale under their existing owners rather than indiscriminately copying their stores.
 
 Restore is an explicit idle-host action. Keep the pre-restore state until the restored installation has passed diagnostics. Verify a backup by opening its copied database and checking integrity/referenced metadata in a disposable location.
+
+### 25.6 Install guide, prerequisite bootstrap, and first-run handoff
+
+Ship an operator-facing INSTALL.md and a working scripts/install.sh release bootstrap. The bootstrap selects a supported real release artifact, verifies the published checksum, and hands installation/configuration to the single canonical `outpost install` implementation. Support an explicitly supplied local built executable for development/offline acceptance before public assets exist. No duplicated script/Go service-configuration paths or placeholder download commands count as a completed installer.
+
+Initial automated dependency support targets the owner's Linux/systemd host; implementation default is the Debian/Ubuntu family, with verified distro versions/architectures recorded in the release guide. Inspect Git, Tailscale daemon/CLI, user-systemd requirements, actual Codex distribution/runtime, writable private paths, and GitHub/provider access. Reuse compatible installed tools. Show missing prerequisites and scoped package-manager actions, requesting local privilege only where needed; services remain unprivileged. Unsupported or failed installs have exact manual remedies.
+
+Release installation does not require Go or a dashboard Node/Vite server. Source building requires the supported Go/Node/package-manager toolchains and a documented frontend-before-Go sequence. A provider distribution may independently require Node or another runtime; identify this truthfully. Repository-specific build tools/dependencies are a per-project execution/setup concern, not a reason to install every possible language globally or run target-repository scripts during Add repository.
+
+Guide Tailscale sign-in/allowed identity, actual Codex authentication, and the host GitHub credential reference with repository access. Reuse existing authorized sessions and stop at genuine human authentication/permission requirements. Never fabricate success, copy browser-session tokens, or log credentials. Missing authentication is resumable and visible in doctor/setup state.
+
+Create private config/state/workspace paths, apply migrations while idle, install/start user units, handle boot/linger deliberately, preserve existing Serve routes, and verify the printed private HTTPS UI/API address. Finish with clear doctor/status results and the dashboard URL. A fresh UI hands off to Add repository, then managed clone/source setup; adding a project does not start coding.
+
+INSTALL.md must contain real release/source commands, runtime/build/prerequisite distinctions, supported targets, one-time auth, first project and adding another, start/stop/status, diagnostics and failure remedies, idempotent reinstall, safe update, backup/restore including unpublished work, and removal boundaries. Before implementation, label planned commands as planned; before release acceptance, replace placeholders with verified usable steps. Removal never deletes project checkouts/history or unrelated routes automatically.
 
 ## 26. GitHub planning, shared queue, and scheduling
 
@@ -1780,8 +1823,22 @@ Keep routine local checks independent from real model credentials. A fixture-dri
 | AC-50 | Responsive operations | Phone/tablet flows support steering, stop, continuation, and queue movement without page overflow |
 | AC-51 | External close/reopen | External closure creates no fake check evidence; rerun requires an explicit execution generation |
 | AC-52 | Unknown GitHub effect | Mutation receipt is reconciled before replay; ambiguous creation/reporting remains visible |
+| AC-53 | Empty-state URL onboarding | Zero projects → Add repository → GitHub URL → real host clone/setup progress → project Queue, without a local path |
+| AC-54 | Private repository access | Configured host access works or yields a specific blocker; credentials stay out of URLs/argv/progress/logs |
+| AC-55 | Add and switch projects | Add remains available with one project; two projects have isolated checkouts/settings/queues/history/drafts |
+| AC-56 | Switch during execution | Viewing/adding B leaves running A pinned; only safe settlement permits another coding project, with unfinished A preserved |
+| AC-57 | Checkout reuse | Revisiting/reselecting a project reuses the same checkout and preserved work |
+| AC-58 | Setup recovery | Clone interruption/duplicate submission/source-phase failure reconciles one operation and retries without another active clone or lost completed phases |
+| AC-59 | Preserve repository planning | Existing queue/main-branch instructions survive setup; a missing queue is initialized through the explicit Add operation |
+| AC-60 | Input and identity guards | Unsupported/ambiguous repository URLs fail clearly; normalized duplicate repository identities resolve to the existing project |
+| AC-61 | Release/runtime separation | Release install serves the embedded UI without Go/Vite/dashboard Node; provider-only runtime requirements are identified |
+| AC-62 | Dependency bootstrap | Supported clean host detects/installs scoped missing prerequisites and reuses compatible existing tools |
+| AC-63 | Guided authentication | Real Tailscale/Codex/GitHub readiness is established or a resumable specific auth blocker is shown |
+| AC-64 | Idempotent installation | Reinstall preserves routes/config/projects/history/unfinished work and ends with a verified private URL |
+| AC-65 | Source install guide | Clean-checkout toolchains/build order produce the executable using documented working commands |
+| AC-66 | Unavailable install prerequisite | Unsupported platform, failed package install, missing access, or absent release artifact never becomes false ready state |
 
-These are behavioral acceptance owners, not a requirement for 52 separate test files. Combine related scenarios into focused journeys where that is clearer.
+These are behavioral acceptance owners, not a requirement for 66 separate test files. Combine related scenarios into focused journeys where that is clearer.
 
 ### 29.4 Validation cadence for developing Outpost
 
@@ -1836,7 +1893,7 @@ The detailed execution backlog is in **Outpost-Implementation-Tasks.md** and ind
 
 ### M0 — Runnable foundation and private host path
 
-Build the Go/Echo/Cobra application, embedded React SPA, SQLite/sqlc/Goose, and shared HTTP conventions. Add project registration, real user-systemd ownership, Tailscale access/identity/origin/CSRF protection, and a compact shell. Deliver a functioning private application early, not a long sequence of unused frameworks.
+Build the Go/Echo/Cobra application, embedded React SPA, SQLite/sqlc/Goose, and shared HTTP conventions. Add URL-based project setup with managed clones, a zero-project Add repository screen, a project menu with Add/switch, real user-systemd ownership, and Tailscale identity/origin/CSRF protection. Deliver a functioning private application early, not a long sequence of unused frameworks.
 
 ### M1 — GitHub planning and ordered work
 
@@ -1925,7 +1982,7 @@ Outpost v0.1 is done when:
 
 1. A documented release build produces an executable containing the actual UI and migrations.
 2. The owner can install it on the Linux host and reach it privately through Tailscale.
-3. Multiple repositories can be registered with independent settings.
+3. From an empty app, the owner adds a GitHub URL and receives a managed host checkout plus source setup; further repositories can be added/switched with independent state while one coding slot remains global.
 4. GitHub-backed tasks can be created/imported, edited, held, and linked by dependencies; Inbox and manifest ordering work without a second queue authority.
 5. A Follow queue run executes real Codex work with recorded source/settings/budget and durable history; fixed scope remains optional.
 6. Instructions can be sent and their delivery state is visible.
@@ -1990,6 +2047,14 @@ Related projects are background context. Matching their feature sets or business
 
 ## 36. Revision record and implementation package
 
+### 0.3 — October 17, 2026
+
+- Added the operator INSTALL.md contract, release bootstrap/canonical install ownership, dependency and authentication setup, and AC-61 through AC-66.
+
+- Made GitHub URL onboarding with managed host cloning the default; local-checkout registration remains advanced.
+- Defined first-run empty state, Add another repository, setup lifecycle/retry, duplicate handling, safe source initialization, and isolated switching under one global coding slot.
+- Updated OP-003/004/005/006/007/014/016 and added AC-53 through AC-60 so the exact flow has concrete acceptance owners.
+
 ### 0.2 — October 17, 2026
 
 - Replaced SQLite-authoritative task definitions with GitHub Issues and source snapshots.
@@ -2008,6 +2073,7 @@ The handoff includes basic repository files so a coding agent starts with concre
 | File or directory | Required responsibility |
 | --- | --- |
 | `README.md` | Product/status, entry points, setup and implementation order |
+| `INSTALL.md` | Operator release/source installation, dependencies/authentication, first project, diagnostics and lifecycle |
 | `AGENTS.md` | Architecture, authority, assignment, trust, validation cadence, and completion handoff |
 | `.github/ISSUE_TEMPLATE/task.yml` | Readable outcome/criteria/notes and optional fenced Outpost settings |
 | `.github/ISSUE_TEMPLATE/bug.yml` | Reproduction and expected-outcome issue form |
@@ -2029,4 +2095,6 @@ The planning initializer requires an explicit repository and an existing initial
 
 Issue templates become available from the default branch. Publishing bootstrap tasks is a separate explicit operation with a retained stable-ID-to-real-issue mapping. Create each once, translate dependencies, then submit the ordered real numbers using the queue file's current SHA.
 
-The implementation task OP-001 must preserve/reconcile these starter conventions while establishing actual pinned toolchains and working build commands. Do not add a fake Go module, nonfunctional CI gate, or invented license grant solely to make the directory look complete. The owner selected the public `felixlheureux/outpost` repository. License policy remains the owner’s choice.
+INSTALL.md is the host-operator guide; docs/project-setup.md and scripts/init_planning.py are developer bootstrap guidance. OP-002 must deliver the working scripts/install.sh and canonical installer; a planned script name is not a current release artifact.
+
+The implementation task OP-001 must preserve/reconcile these starter conventions while establishing actual pinned toolchains and working build commands. The developer planning helper initializes this Outpost repository; normal in-app Add repository performs its own source setup and never requires the user to run that helper. Do not add a fake Go module, nonfunctional CI gate, or invented license grant solely to make the directory look complete. The owner selected the public `felixlheureux/outpost` repository. License policy remains the owner’s choice.

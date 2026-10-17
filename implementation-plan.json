@@ -33,7 +33,7 @@
     },
     {
       "id": "OP-002",
-      "title": "Make Tailscale access and supervised execution real",
+      "title": "Install Outpost and prerequisites with private access and supervision",
       "order": 2,
       "depends_on": [
         "OP-001"
@@ -48,7 +48,7 @@
     },
     {
       "id": "OP-003",
-      "title": "Register projects and build the compact application shell",
+      "title": "Add repositories with managed cloning and build the project shell",
       "order": 3,
       "depends_on": [
         "OP-001",

@@ -1,6 +1,6 @@
 # Outpost — Implementation Tasks
 
-**Revision:** 0.2 · October 17, 2026 · Published to felixlheureux/outpost  
+**Revision:** 0.3 · October 17, 2026 · Published to felixlheureux/outpost  
 **Target:** First usable personal release on a Linux host over Tailscale  
 **Companion specification:** [Outpost-Technical-Specification.md](Outpost-Technical-Specification.md)  
 **Interactive design reference:** [Outpost-UX-Reference.html](Outpost-UX-Reference.html)
@@ -40,7 +40,7 @@ If the repository already contains implementation, inspect it and its `AGENTS.md
 | --- | --- | --- | --- |
 | 1 | OP-001 | None | Runnable Go executable with embedded React UI and local persistence |
 | 2 | OP-002 | OP-001 | Private Tailscale access and independent supervised execution |
-| 3 | OP-003 | OP-001, OP-002 | Project registration, readiness, and compact application shell |
+| 3 | OP-003 | OP-001, OP-002 | URL onboarding, managed clones, readiness, and project switching |
 | 4 | OP-004 | OP-003 | GitHub-backed issue specifications and durable source operations |
 | 5 | OP-005 | OP-004 | One shared planning-branch queue with conflict handling |
 | 6 | OP-006 | OP-003, OP-004, OP-005 | Usable Inbox, Queue, task inspector, and start panel |
@@ -72,7 +72,7 @@ This order keeps an actual UI available early. Do not replace functional integra
 
 **Dependencies:** None.  
 **Specification:** §§5–7, 18–19, 24–25, 30.  
-**Acceptance owners:** AC-05, AC-06, foundation for AC-37.
+**Acceptance owners:** AC-05–06, foundation for AC-37, AC-61, AC-65.
 
 ### Outcome
 
@@ -89,6 +89,10 @@ A fresh checkout builds one Go executable that serves the actual React applicati
 7. Open SQLite with foreign keys, busy timeout, bounded connections, and short transactions. Apply migrations deliberately; normal web/worker startup must not race to migrate. Add only the tables/columns needed now and extend through later migrations.
 8. Provide `serve`, `version`, and basic `doctor` entry points; reserve `worker` wiring for the supervision task. Document development proxying to Echo and the production build sequence.
 
+### Installation and first-run contract
+
+Establish and document actual clean-checkout source-build prerequisites and commands in INSTALL.md and docs/development.md: pinned supported Go/Node/package-manager toolchains, frontend dependency install from the committed lockfile, frontend build before Go embedding, sqlc/generation where required, and the resulting executable. Do not require the operator to guess commands or treat an unimplemented command as runnable. Source toolchains are not mandatory dashboard runtime dependencies. Provide the locally built binary as the input for OP-002 installer acceptance before public release assets exist.
+
 ### Failure and edge cases
 
 Unsupported newer schema fails clearly. A half-built frontend cannot pass the packaging check. Direct navigation to a frontend route succeeds; a typo in an API/asset route remains a 404. Runtime state directories are outside the source checkout and receive private permissions.
@@ -101,19 +105,22 @@ Unsupported newer schema fails clearly. A half-built frontend cannot pass the pa
 - [ ] Fresh migrations apply to a temporary SQLite database and reject an unsupported schema.
 - [ ] Typecheck, production build, and a release-binary HTTP smoke check pass.
 
+- [ ] INSTALL.md contains the actual working source-build sequence and clearly separates build tools from release runtime prerequisites.
+- [ ] A clean-checkout build yields the binary used by the host installer without a runtime Vite server.
+
 ### Verification and handoff
 
 Use one focused routing/migration integration test and one embedded-binary smoke journey. Report executable size and idle memory only if actually measured, with the environment stated. Handoff includes build commands, state-path convention, API-error shape, migration ownership, and where later services plug into the shell.
 
-## OP-002 — Make Tailscale access and supervised execution real
+## OP-002 — Install Outpost and prerequisites with private access and supervision
 
-**Dependencies:** OP-001.  
+**Dependencies:** #1 (OP-001)  
 **Specification:** §§6, 12, 15, 22–23, 25.  
-**Acceptance owners:** AC-01–04, AC-12–17, AC-25–26 at supervision level.
+**Acceptance owners:** AC-01–04, AC-12–17, AC-25–26 at supervision level; AC-61–64 and AC-66.
 
 ### Outcome
 
-The application is reachable privately through Tailscale, and a supervised fixture worker keeps running when the web service or browser goes away. Ownership uncertainty cannot launch a second writer.
+The owner installs Outpost through a documented guided flow that detects/installs supported host prerequisites, establishes real access, configures private user services, and prints a verified dashboard URL. Independently supervised execution survives web/browser interruption, and ownership uncertainty cannot launch a second writer.
 
 ### Implementation requirements
 
@@ -124,6 +131,18 @@ The application is reachable privately through Tailscale, and a supervised fixtu
 5. Reconcile missing/lost launch acknowledgements by observing the recorded unit and process identity. Replayed starts return the existing receipt; duplicate worker claims fail safely.
 6. Define worker/check process-group settlement and OS workspace-lock lifetime. An owned surviving child retains exclusion even if its parent disappears. Normal recovery uses observed ownership, never deleting a lock file.
 7. Add install/status/stop diagnostics for absent user bus, disabled lingering, unavailable Tailscale, unavailable CLI prerequisites, unwritable directories, and unknown owned processes. Keep requested host changes explicit and narrow.
+
+### Installation and first-run contract
+
+Deliver a working scripts/install.sh release bootstrap and one canonical outpost install implementation, together with a complete operator INSTALL.md. The bootstrap obtains the correct supported Linux/architecture executable from this repository's real release assets, verifies its published checksum, and hands configuration to outpost install; it must not duplicate service/configuration logic. Support a supplied local built binary for development/offline bootstrap acceptance before public releases exist.
+
+Automate prerequisite inspection and installation for the first supported Linux target (implementation default: Debian/Ubuntu family with systemd; record verified versions/architectures). Check Git, Tailscale daemon/CLI, user-systemd support and required system packages, the supported Codex distribution, writable paths, and source/provider access. Show what is missing and the exact package action; use host package-manager privileges only for those actions. Already installed compatible tools are reused. The web/worker run as the chosen unprivileged user. Unsupported/failed package paths stop with an explicit manual remedy rather than a false success.
+
+Use an official supported Codex installation method pinned/verified with OP-008. The dashboard's release install requires neither Go nor a Vite/Node dashboard server. A provider distribution may independently need Node; detect/document that rather than conflating frontend build tooling with runtime requirements. Do not install every possible target repository's toolchain globally.
+
+Guide the one-time human authentication boundaries: Tailscale login/allowed identity, Codex sign-in, and the host GitHub credential reference/required repository access. Detect existing authentication and reuse it. Do not fake successful sign-in, copy tokens from the browser, expose credentials in logs/argv/config output, or auto-accept unrelated permissions. Missing authentication remains resumable setup; repeated installation continues from known completed phases.
+
+Create private XDG config/state and managed-workspace directories, install the executable and user units, deliberately handle boot/linger prerequisites, apply idle-safe migrations, preserve existing Serve routes/settings, and verify the actual HTTPS UI/API boundary. Finish by printing the dashboard URL plus concise doctor/status results; the first UI should show Add repository when no projects exist. Install is idempotent and preserves project/queue/history/unfinished work. INSTALL.md must also cover source install, upgrade, backup/restore, failure recovery, and removal boundaries.
 
 ### Failure and edge cases
 
@@ -138,52 +157,67 @@ Browser disconnection proves nothing about worker state. A successful systemd jo
 - [ ] Existing Serve routes survive installation; allowed/private access succeeds and denied identity/origin controls fail.
 - [ ] Closing the browser leaves execution unaffected.
 
+- [ ] scripts/install.sh and outpost install form a documented working path using a release asset or explicitly supplied local binary; no duplicate installer implementation exists.
+- [ ] A clean supported Linux host detects missing prerequisites, performs the documented scoped dependency installation, and reuses already compatible tools.
+- [ ] Tailscale/Codex/GitHub authentication is guided, resumable, and truthfully verified; missing access is not reported ready.
+- [ ] A second install preserves existing config/Serve routes/projects/data/unfinished work and prints the same usable dashboard address.
+- [ ] INSTALL.md covers release versus source prerequisites, exact commands, one-time auth, first Add repository, doctor/troubleshooting, upgrade/backup/restore, and safe removal boundaries.
+- [ ] The release UI runs without Go or a dashboard Node/Vite process; any independent provider runtime requirement is explicitly identified.
+
 ### Verification and handoff
 
 Use deterministic local process fixtures for ownership races, then a real Linux user-systemd/Tailscale smoke journey. Label unavailable host checks explicitly. Handoff exposes the supervisor interface, reservation lifecycle, process identity receipt, and current liveness projection for the scheduler and UI.
 
-## OP-003 — Register projects and build the compact application shell
+## OP-003 — Add repositories with managed cloning and build the project shell
 
-**Dependencies:** OP-001, OP-002.  
-**Specification:** §§8–9, 19, 21–22, 25.  
-**Acceptance owners:** AC-11, AC-13, initial AC-47/50.
+**Dependencies:** #1 (OP-001), #2 (OP-002)  
+**Specification:** §§8.1, 9, 18–19, 21.1, 22, 25.  
+**Acceptance owners:** AC-11, AC-13, AC-53–54, AC-57–58, AC-60; shell foundation for AC-55–56.
 
 ### Outcome
 
-The owner can register existing repository workspaces, inspect readiness, switch projects, and navigate Queue, Work, and History without losing the current run.
+On an installation with no projects, the owner chooses Add repository, pastes a GitHub repository URL, and Outpost creates a managed checkout on its Linux host. Setup progress and any real blocker are visible; completed setup opens that project's Queue. From the first project's menu the owner can add another repository, switch projects, and retain isolated settings/history without another permanent runner.
 
 ### Implementation requirements
 
-1. Store project identity, canonical workspace/Git common directory, execution defaults, configured check profiles, Git delivery target, and source configuration references. Do not put credentials in public DTOs.
-2. Inspect existing checkout/branch/remote, staged/unstaged/untracked paths, and provider prerequisites. Registration does not clone, reset, stash, switch branches, rewrite remotes, or authenticate the agent silently.
-3. Detect filesystem aliases and duplicate checkout identities. A second project record cannot bypass workspace exclusion by referring to the same location differently.
-4. Provide readiness with machine codes and concrete next actions for unavailable provider, dirty/unassigned work, changed baseline, missing profiles, missing source setup, and owned worker/check. Mark source-dependent readiness incomplete until OP-004/005 provides it.
-5. Build the prototype's restrained shell: narrow desktop navigation for Queue/Work/History, project selection only when multiple projects exist, secondary project settings and connection diagnostics, and a persistent run bar that names its project/task.
-6. Default landing is Work during active/input-required work, Queue when idle; honor deep links and deliberate navigation. Switching projects does not retarget an active run's controls or instruction draft.
-7. Show actual empty/loading/unavailable states. The global run bar must use real server observations, distinguish stale connection from stopped execution, and link to the owning run even while another project's queue is open.
+1. Make managed cloning the default. Normal setup asks for a GitHub repository link, not a filesystem path or an SSH preparation step. Advanced Use an existing checkout remains available and inspects its existing Git state without cloning/resetting it.
+2. Normalize supported GitHub repository URLs and resolve stable repository identity before choosing a private host destination. Accept normal HTTPS repository links, including an optional `.git` suffix; reject ambiguous/unsupported hosts, unsafe protocols, embedded credentials, and paths that are not repositories with a readable correction. Do not interpolate a URL into a shell command or use its path as a trusted local path.
+3. Use the installation's configured host GitHub access for private repositories, with public cloning when credentials are unnecessary. Missing access is an actionable setup state; do not create another OAuth/login flow per project. Keep credentials out of argv, URLs, progress, and logs. Source/provider readiness is reported separately.
+4. Persist project/setup-operation identity and intent before cloning. Clone using a controlled argv into operation-owned staging below the installation's managed workspace root, then publish/register the completed checkout atomically. Store canonical Git/workspace identity and a managed-versus-existing ownership flag. Subsequent visits reuse the checkout.
+5. Setup is an observable operation: inspecting, cloning, configuring, ready, needs_attention, or interrupted. Expose bounded actual progress, stable operation ID, and retry/cancel/reconcile behavior. Browser/web interruption must not produce a false ready project or duplicate clone. Inspect owned work before retrying; never delete/reset a registered or operator-owned checkout as cleanup.
+6. Add duplicate-identity guards for repeated URLs, `.git`/case aliases, double submission, and requests from two tabs. Reopen/link the existing project or setup operation instead of making another clone. Detect canonical path aliases in advanced mode. A return visit never reclones a working project.
+7. Read repository instructions and manifests, detect the default branch and stack, and inherit installation defaults. Suggest check/delivery settings with provenance when uncertain; do not run discovered dependency/build scripts just because a repository was added. Existing recorded Outpost settings and instructions are preserved. No file is required on the target repository's main branch for registration.
+8. Hand source initialization to OP-004/005: connect Issues, reuse the existing planning branch/manifest, or initialize a missing one as a phase of the explicit Add repository action. Keep a successful clone when source setup fails and retry only that phase. At OP-003's intermediate milestone, source capabilities not implemented yet are explicitly pending; OP-006 proves the complete integrated flow after OP-004/005.
+9. Build a true zero-project screen with a primary Add repository action. Once at least one project exists, provide a current-project menu containing Add repository even when only one project exists. List other projects when present; preserve route/deep-link intent and per-project selection, history, settings, and drafts.
+10. Keep Queue/Work/History compact. A persistent global run bar names the executing project/task while another project is viewed. A selection change never stops/starts work, changes a turn target, carries another project's draft, or rewrites a running assignment. Starting another coding project requires the global execution slot to be safely released.
+11. Repository setup and browsing do not create additional permanent coding runners. Bounded setup work in a new destination can coexist with one coding run elsewhere; it may not touch that run's checkout or bypass workspace exclusion. Adding a repo authorizes setup; an explicit Start authorizes coding.
+12. Provide readiness for source access/setup, provider authentication, check policy, missing initial branch, disk/path errors, dirty/unassigned work in advanced mode, changed dependency baseline, and surviving processes. Keep project setup state distinct from run phase/liveness.
 
 ### Failure and edge cases
 
-Unknown paths and non-Git directories produce readable errors. Archiving a project with unresolved work is rejected. Unsupported provider setup is a readiness reason, not permission to invent a model or claim the installation is ready.
+Cover inaccessible/private/renamed repositories, invalid URL, empty repository/no initial branch, disk exhaustion, network interruption, duplicate clicks, browser/web restart during clone, a completed clone with failed queue setup, and advanced mode pointing to another registered checkout. Preserve existing queues, local edits, instructions, and task assignments. A partial clone must not become ready or trigger a second active clone blindly.
 
 ### Acceptance criteria
 
-- [ ] Two independent repositories can be registered and selected with separate settings.
-- [ ] Alias registration cannot create competing ownership of the same checkout.
-- [ ] Registration leaves Git state unchanged.
-- [ ] The run bar remains correct through project/route changes.
-- [ ] Readiness explains the failed prerequisite and an appropriate next action.
-- [ ] Empty and populated shell layouts remain usable on desktop and a narrow phone.
+- [ ] With zero projects, Add repository is the clear primary action; a GitHub URL is sufficient input for the default path.
+- [ ] A successful add creates the checkout on the Outpost host, displays real setup stages, and opens that project's Queue after integrated source setup.
+- [ ] Private access failures explain the missing host access without leaking credentials; retry preserves completed setup phases.
+- [ ] Repeated URL/double-submit/reconnect returns the same project/operation; returning later reuses the existing checkout.
+- [ ] Clone/source failure and interruption leave a recoverable state without overwriting registered/user-owned files or existing planning data.
+- [ ] From one project, Add repository remains available; two repositories have distinct checkouts/settings/history.
+- [ ] Switching projects while A executes leaves A's assignment/worker/composer target unchanged and visible in the global bar.
+- [ ] Advanced existing-checkout mode preserves its original Git state and enforces canonical ownership.
+- [ ] Setup alone starts no coding task, installs no repository dependencies, and adds no permanent runner.
 
 ### Verification and handoff
 
-Use temporary real Git repositories for identity/baseline observations and one shell navigation journey. Handoff specifies project/readiness DTOs, settings revisions, source-configuration slots, and current-run navigation used by subsequent tasks.
+Use disposable local Git clone fixtures behind a narrow repository-source seam to verify staging, identity, retries, and interruption without a model. Use one integrated browser journey starting empty and adding/switching two fixture-backed repositories after OP-004/005. Separately label actual public/private GitHub account acceptance. Handoff includes setup-operation/project/readiness DTOs, retry semantics, managed ownership, source-phase integration, and project/current-run selection rules.
 
 ## OP-004 — Make GitHub Issues the task source
 
-**Dependencies:** OP-003.  
+**Dependencies:** #3 (OP-003)  
 **Specification:** §§7–10, 18–19, 23, 26.1/3/8/10.  
-**Acceptance owners:** AC-07–09, AC-39, AC-45, AC-51–52.
+**Acceptance owners:** AC-07–09, AC-39, AC-45, AC-51–54, AC-58–59.
 
 ### Outcome
 
@@ -200,6 +234,10 @@ Issues created in a separate GitHub review session become readable Outpost tasks
 7. Edit forms carry expected source digest and local revision. Re-read/compare before patch, retain drafts on detected conflict, re-read after writing, and surface concurrent-write uncertainty. Do not claim issue PATCH has the manifest SHA's atomic compare-and-swap semantics.
 8. Treat externally closed issues as external/unverified state. Source edits do not rerun locally settled tasks. Preserve source revisions used by execution and explicit reopen-generation behavior.
 
+### Managed repository onboarding
+
+Reuse the repository identity and private host credential reference established by Add repository. After cloning, the setup coordinator probes issue/source access and connects the selected repository without another per-project sign-in ceremony. Public clone success does not imply issue/queue write permission. A source-auth failure retains the managed clone and project identity and offers retry of the failed source phase. Parsing/synchronization must not modify repository instructions or main-branch files.
+
 ### Failure and edge cases
 
 An inaccessible issue is not automatically missing/deleted. Authentication/rate limits remain distinguishable. No webhook, public callback, or direct ChatGPT-to-tailnet connection is required. A source refresh never replaces the active assignment.
@@ -213,15 +251,18 @@ An inaccessible issue is not automatically missing/deleted. Authentication/rate 
 - [ ] Detected edit conflicts preserve the local draft; no atomic issue-update guarantee is fabricated.
 - [ ] Closed/edited issues do not fabricate checks or silently rerun completed work.
 
+- [ ] Add repository can retain a successful clone while source access is blocked, then finish setup after access is corrected without recloning.
+- [ ] Public/private repository setup uses the configured host access and never exposes credentials in URLs, progress, argv, or diagnostics.
+
 ### Verification and handoff
 
 Use GitHub fixtures for pagination, auth/rate failures, malformed bodies, creation timeouts, and conflicts; one real configured-repository read/create/edit journey is separate acceptance. Handoff provides source DTOs/digests, parsing contract, operation receipt API, and reconciliation hooks.
 
 ## OP-005 — Implement the shared planning-branch queue
 
-**Dependencies:** OP-004.  
+**Dependencies:** #4 (OP-004)  
 **Specification:** §§8, 18–19, 26.1–6.  
-**Acceptance owners:** AC-40–41, AC-44–45, AC-52.
+**Acceptance owners:** AC-40–41, AC-44–45, AC-52–53, AC-58–59.
 
 ### Outcome
 
@@ -238,6 +279,10 @@ All planners and Outpost use one ordered issue-number list. Reordering changes o
 7. Creation-plus-queueing is a two-step flow: if issue creation succeeds but append fails, expose the created issue in Inbox and retry append only. An issue existing in the list is a no-op append, not a duplicate entry.
 8. Define source unavailability and manual Sync behavior. Background refresh is bounded/configurable; a worker always refreshes at admission independently of the UI poll.
 
+### Managed repository onboarding
+
+Initialize the source as a phase of the explicitly requested Add repository operation. Reuse an existing valid planning branch/file without resetting or replacing its contents. When missing and permissions/base commit allow, create `outpost/queue` and its empty root `queue.json` through GitHub APIs automatically, then mark that setup phase complete. Do not require the normal user to run the developer setup helper, edit JSON, or switch the checkout. Existing malformed/inaccessible data is a named blocker, not permission to overwrite. If source initialization fails after cloning, retry the source phase using the same project/operation. Keep main-branch files unchanged.
+
 ### Failure and edge cases
 
 Completed/closed entries may remain in the list and are skipped with provenance; removal is an explicit planning action. Removing an active issue does not interrupt its pinned assignment. Shared queue storage does not create distributed execution locking across separate installations.
@@ -251,15 +296,19 @@ Completed/closed entries may remain in the list and are skipped with provenance;
 - [ ] Partial creation/append failure queues the same created issue on recovery.
 - [ ] The current manifest SHA and source-health state are available to scheduler/UI.
 
+- [ ] Adding a new project initializes a missing planning branch/empty manifest automatically from the explicit setup request.
+- [ ] Adding a project with an existing queue preserves its exact contents; a failed queue phase can resume without another clone.
+- [ ] Neither setup nor retries modify target main-branch instructions/templates or switch the coding checkout.
+
 ### Verification and handoff
 
 Use a focused fake GitHub contents service for SHA races/uncertainty and one real planning-branch read/write acceptance. Record checkout HEAD/status before and after to prove queue operations did not change it. Handoff documents manifest schema, error/receipt DTOs, and atomicity limits.
 
 ## OP-006 — Build Inbox, Queue, the task inspector, and start panel
 
-**Dependencies:** OP-003, OP-004, OP-005.  
+**Dependencies:** #3 (OP-003), #4 (OP-004), #5 (OP-005)  
 **Specification:** §21.1–6 and §§8, 10, 19.  
-**Acceptance owners:** AC-07–08, AC-39–41, AC-45, AC-47.
+**Acceptance owners:** AC-07–08, AC-39–41, AC-45, AC-47, AC-53, AC-55–60.
 
 ### Outcome
 
@@ -276,6 +325,10 @@ The owner can capture an issue, refine it, deliberately queue it, reorder pendin
 7. Implement a start panel showing project/branch, next eligible task/blockers, Follow queue default, optional Fixed scope, model/reasoning/actual permissions, delivery, task limit, optional runtime budget, and instructions. Until execution integration exists, clearly identify the missing capability rather than simulate success.
 8. Source details and settings live behind secondary actions. Last successful sync and actionable failures are visible without exposing host credentials or making ordinary users manage JSON.
 
+### Managed repository onboarding
+
+Connect the Add repository backend from OP-003 with the source phases from OP-004/005. The first-run screen has no fake selected project: it offers Add repository, a GitHub URL field, and an Add action. Show actual inspection/clone/configuration progress and the failed stage with an appropriate retry action. On successful setup, open the new project's Queue. Once one project exists, its project menu still contains Add repository; with two projects it also switches between them. Project selection, drafts, queues, settings, and history remain isolated. Setup progress survives browser reconnect and duplicate submission without creating a second clone. While A executes, adding/viewing B keeps A visible in the global run bar; B's Start explains the occupied execution slot rather than stopping A or queueing an automatic cross-project handoff.
+
 ### Failure and edge cases
 
 Selection survives a source reorder; removal/closure of the selected issue has an explicit state. Two-tab conflicts keep both source and local intent inspectable. A failed append must not invite another Create issue click as the only recovery path.
@@ -289,15 +342,20 @@ Selection survives a source reorder; removal/closure of the selected issue has a
 - [ ] The start panel makes its scope and effective settings clear without a second mandatory approval screen.
 - [ ] Keyboard and basic narrow-screen operations work before the later responsive pass.
 
+- [ ] From an empty installation, paste a repository URL → see setup progress → land in the project's Queue without supplying a local path.
+- [ ] Add a second repository from the project menu, switch between A/B, and revisit each without recloning or mixing state.
+- [ ] While A executes, add/view B and return to A; the global run bar and unsent instructions remain correctly targeted.
+- [ ] Clone/source failures show the actual failed phase and retry it without losing a completed checkout or an existing queue.
+
 ### Verification and handoff
 
 One browser journey covers creation, partial failure, reorder conflict, and task selection; avoid component snapshots mirroring markup. Handoff identifies the real start request payload and the selected issue/source revision used by the scheduler.
 
 ## OP-007 — Add durable scheduling, Follow queue, and task admission
 
-**Dependencies:** OP-002, OP-003, OP-005.  
+**Dependencies:** #2 (OP-002), #3 (OP-003), #5 (OP-005)  
 **Specification:** §§9–12, 18–19, 26.  
-**Acceptance owners:** AC-09–16, AC-25, AC-40–44, AC-51.
+**Acceptance owners:** AC-09–16, AC-25, AC-40–44, AC-51, AC-55–58.
 
 ### Outcome
 
@@ -314,6 +372,10 @@ A run admits exactly one owned task at a time, follows fresh queue changes betwe
 7. Count successful tasks only after checks/delivery settle. Failure/blocked/interrupted work stops automatic advancement and keeps unfinished edits assigned. An empty eligible set distinguishes drained, budget reached, externally closed, and truly blocked work.
 8. Reconcile surviving work before another assignment. A completed task remaining in the manifest is skipped even if GitHub reporting is pending. Source body changes do not implicitly reopen a local execution generation.
 
+### Managed repository onboarding
+
+Project browsing and repository setup are independent of the single global coding slot. A run remains scoped to its recorded project and never switches when the user selects another repository. Do not automatically start B after A drains. After an explicit stop/interruption of A, release the global slot only when all owned coding/check processes are settled and uncertain effects reconciled; unfinished A remains assigned to its own checkout/history. B may then start in its separate workspace without discarding or repairing A first. Resuming A later is explicit and rechecks its preserved assignment/baseline. If A still owns a child/process, explain why B cannot start.
+
 ### Failure and edge cases
 
 External issue closure is not check evidence. A changed checkout may invalidate predecessor availability. Queue outage lets active work finish but blocks the next admission. A drained run settles rather than polling forever. A run reservation is not released just because a display status looks terminal.
@@ -327,15 +389,19 @@ External issue closure is not check evidence. A changed checkout may invalidate 
 - [ ] Failed assigned work is preserved and not abandoned for another task.
 - [ ] Completion/closure/reopen behavior preserves execution generations and provenance.
 
+- [ ] Selecting/adding another project never retargets a running assignment or starts a second coding worker.
+- [ ] After safe settlement of A, B can run while A's preserved unfinished checkout remains recoverable; surviving A processes still prevent a conflicting start.
+- [ ] A drained run does not automatically jump to another project's queue.
+
 ### Verification and handoff
 
 Use real SQLite concurrency, temporary Git baselines, and a deterministic fixture worker. Exercise source-change/admission timing and stop-after-task races. Handoff includes the assignment DTO, transition guards, next-eligible projection, and provider lifecycle integration point.
 
 ## OP-008 — Integrate the real Codex App Server adapter
 
-**Dependencies:** OP-007.  
+**Dependencies:** #7 (OP-007)  
 **Specification:** §§11–14, 23, 28.  
-**Acceptance owners:** AC-16, AC-26–31 at adapter level, real-provider portion of AC-38.
+**Acceptance owners:** AC-16, AC-26–31 at adapter level, real-provider AC-38, AC-63, AC-66.
 
 ### Outcome
 
@@ -352,6 +418,10 @@ An owned task can run through installed Codex using its actual supported App Ser
 7. Resume an explicit saved session when identity/capability/workspace agree. A missing or rejected session is a clear failure; fresh conversation requires explicit selection and a new linked attempt.
 8. Normalize provider failures into actionable authentication, protocol, permission, interruption, and unknown-outcome states. Provider permission/OS boundaries cannot be elevated by prompt text.
 
+### Installation and first-run contract
+
+Supply the installer with a verified official Codex distribution/version and its actual runtime prerequisites. Detect an existing installation/account before changing anything. Document authentication/status diagnostics and compatibility failures in INSTALL.md. If the chosen distribution needs Node or another runtime, make that an explicit provider prerequisite; do not introduce a frontend dev server or imply the embedded dashboard itself requires Node.
+
 ### Failure and edge cases
 
 Malformed/oversized frames, stderr spam, lost terminal acknowledgement, missing executable, authentication expiry, and unexpected process exit all preserve task assignment and receipts. Avoid automatically retrying a turn whose effects are unknown.
@@ -363,6 +433,9 @@ Malformed/oversized frames, stderr spam, lost terminal acknowledgement, missing 
 - [ ] Saved-session failure never silently starts a fresh conversation.
 - [ ] A real authenticated Codex task performs a small disposable repository change with recorded identities.
 - [ ] Agent claims are not marked runner-verified checks or delivery.
+
+- [ ] The installer/doctor can identify the actual supported Codex version, distribution requirements, and authentication state.
+- [ ] A missing/unsupported provider installation or sign-in produces actionable first-run guidance rather than simulated readiness.
 
 ### Verification and handoff
 
@@ -557,9 +630,9 @@ Use one cross-state browser journey backed by stored fixture runs and focused de
 
 ## OP-014 — Finish phone/tablet operations and accessibility
 
-**Dependencies:** OP-006, OP-010, OP-013.  
+**Dependencies:** #6 (OP-006), #10 (OP-010), #13 (OP-013)  
 **Specification:** §21, especially 21.11–12; §22.  
-**Acceptance owners:** AC-32, AC-47–50.
+**Acceptance owners:** AC-32, AC-47–50, AC-53, AC-55–58.
 
 ### Outcome
 
@@ -576,6 +649,10 @@ The same app is comfortable for quick Tailscale check-ins from a phone and does 
 7. Reconnect after sleep/network loss without discarding drafts, falsely claiming liveness, jumping the reader, duplicating a message, or reissuing an execution control automatically.
 8. Remove redundant settings/navigation and prototype-only explanatory text from product flows. Keep implementation details secondary unless they explain a meaningful decision.
 
+### Managed repository onboarding
+
+Include zero-project onboarding and the project menu in the phone/tablet pass. The GitHub URL form and actual clone/configuration progress fit without horizontal overflow, with an actionable retry state. Add repository remains reachable with one project. With two projects, the selector can switch context while the global run bar still identifies the executing project. Long owner/repository names wrap, and a phone reconnect does not submit setup twice or lose the current operation/draft.
+
 ### Failure and edge cases
 
 Use a long task title, long unbroken branch/path, empty Inbox, source conflict, stop-pending state, and unknown message receipt. Test a dialog opened after scrolling and a draft typed before a route change.
@@ -587,6 +664,9 @@ Use a long task title, long unbroken branch/path, empty Inbox, source conflict, 
 - [ ] Keyboard users can inspect/edit/move tasks, send instructions, and close dialogs with sensible focus return.
 - [ ] Reconnection/navigation preserves scoped drafts and reading position.
 - [ ] Light/dark/status/focus contrast passes the chosen accessibility checks.
+
+- [ ] On phone and tablet, empty-state URL onboarding, Add another repository, switching, setup failure/retry, and reconnect are usable.
+- [ ] With A running and B selected, touch controls and draft targets remain unambiguous.
 
 ### Verification and handoff
 
@@ -631,9 +711,9 @@ Use a small representative fixture plus a read-only preview of actual current ta
 
 ## OP-016 — Package the release and prove the complete owner workflow
 
-**Dependencies:** OP-001 through OP-015.  
+**Dependencies:** #1 (OP-001), #2 (OP-002), #3 (OP-003), #4 (OP-004), #5 (OP-005), #6 (OP-006), #7 (OP-007), #8 (OP-008), #9 (OP-009), #10 (OP-010), #11 (OP-011), #12 (OP-012), #13 (OP-013), #14 (OP-014), #15 (OP-015)  
 **Specification:** §§24–25, 28–29, 33–34.  
-**Acceptance owners:** Final integration of AC-01 through AC-52, especially AC-37–38.
+**Acceptance owners:** Final integration of AC-01 through AC-66, especially AC-37–38 and AC-53–66.
 
 ### Outcome
 
@@ -646,10 +726,18 @@ The first release can be built, installed, backed up, updated, and used for real
 3. Complete the actual sequence: inspect pushed code in a separate GitHub session; create an issue; observe Inbox; queue/reorder; start Follow queue; perform real Codex work; send direction; finish/check/deliver; observe completion reporting; inspect History from another device.
 4. Demonstrate source addition during execution affecting the next boundary and pinning the active task. Demonstrate a safe stop/continuation and a source/reporting interruption without duplicate coding work.
 5. Restart the web service during active work and reconnect. Separately exercise the specified process/receipt failure paths with fixtures; do not require deliberately destructive failure against valuable live work.
-6. Map AC-01 through AC-52 to existing focused test/journey evidence. Combine related cases rather than creating 52 standalone tests. Identify unavailable real-account/host/device evidence honestly.
+6. Map AC-01 through AC-66 to existing focused test/journey evidence. Combine related cases rather than creating 66 standalone tests. Identify unavailable real-account/host/device evidence honestly.
 7. Run final formatting/generation before the agreed relevant gate: Go vet/tests, frontend typecheck/build, required browser journeys, sqlc freshness, and embedded-binary smoke. Use race/host checks where changed concurrency/supervision warrants them. Do not restart unchanged full gates after documentation-only evidence edits.
 8. Record measured idle/resource behavior with host/workload context if available. Do not claim Go memory/speed advantages from language choice alone.
 9. Finalize operator quickstart, GitHub credential/source setup, task template, queue conflict/recovery guide, checks/delivery configuration, stop semantics, logs/retention, backup/update, and troubleshooting.
+
+### Managed repository onboarding
+
+Begin the owner journey with zero registered projects. Add repository by GitHub URL and confirm a host-side managed checkout plus source initialization. Add a second repository through the same menu; switch queues/settings/history and revisit without recloning. Run A while browsing B, preserve drafts and the global bar, safely stop/settle A, then start B with the same single coding slot and return to A's preserved work. Verify existing planning data and target main-branch files survive setup.
+
+### Installation and first-run contract
+
+Ship actual release artifacts and checksums consumed by scripts/install.sh. Validate INSTALL.md from a clean supported Linux host and a separate clean source checkout: release bootstrap/local-binary install, required dependencies, one-time Tailscale/Codex/GitHub setup, unprivileged service and boot behavior, real dashboard URL, then empty-state Add repository. Re-run installation to prove preservation/idempotency; test an unavailable dependency/authentication path without false success. Keep source-only Go/Node toolchains separate from dashboard runtime and state any provider-specific requirement. Replace the starter guide's planning/status notices with actual verified release commands and compatibility before calling this release installable.
 
 ### Failure and edge cases
 
@@ -664,6 +752,13 @@ Fixture success cannot substitute for actual Codex/Tailscale/device acceptance. 
 - [ ] The acceptance map names evidence and any remaining limitations explicitly.
 - [ ] No deferred platform features are required to use the release.
 
+- [ ] The actual owner journey includes empty-state URL cloning, a second repository, project switching/reuse, and one safely transferred coding slot.
+- [ ] A setup failure can be retried at its failed phase; existing queue/main-branch content and unfinished work remain intact.
+
+- [ ] The shipped INSTALL.md and installer work on a clean supported host and the source-build instructions work from a clean checkout.
+- [ ] Release asset/checksum selection, dependency/auth setup, idempotent reinstall, and the final private URL are demonstrated with real host evidence.
+- [ ] Unsupported/unavailable prerequisite cases remain actionable and never report a ready installation.
+
 ### Verification and final handoff
 
 Provide release/build identity, installation address, tested tool/provider versions, concise acceptance map, measured resource notes if any, known limitations, and upgrade/backup commands. Keep secrets and private logs out of public issue reports. Deferred work remains a separate backlog rather than expanding this release indefinitely.
@@ -677,3 +772,5 @@ The reference does **not** call GitHub, launch Codex/systemd, perform real check
 Rebuild the UI using the selected React/shadcn stack. Do not copy the prototype's standalone event delegation or visual-export wrapper as application architecture. Preserve the useful layout and interactions while improving actual responsive behavior, accessibility, and source/conflict states.
 
 The spec is authoritative when the prototype simplifies a flow. Notable examples: the production narrow-screen inspector is a sheet/detail route rather than merely a panel below the list; real GitHub writes expose saving/conflict/unknown states; and current-work landing depends on actual execution state rather than the sample's initial Queue screen.
+
+The concept begins with a populated project. First-run Add repository, managed clone/setup progress, and Add another repository/project switching are explicit required production flows in OP-003/006 and spec §§8–9/21; their absence from the concept does not defer them. INSTALL.md covers host installation separately.

@@ -26,3 +26,5 @@ numbers never seed the actual queue.
 The export was checked for complete structure and JavaScript syntax. Production
 browser/device accessibility and responsive acceptance remain explicit tasks;
 this file alone does not establish those checks.
+
+The concept starts with an existing project. It does not depict the required first-run Add repository URL screen, managed clone/setup progress, or the project menu for adding/switching repositories. Implement these first-release flows from OP-003/006 and spec §§8–9/21. Host installation is a separate flow specified in INSTALL.md and OP-002.

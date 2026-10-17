@@ -6,42 +6,50 @@ depends_on: ["OP-001", "OP-002"]
 source: bootstrap-handoff
 github_issue: 3
 ---
-# OP-003 — Register projects and build the compact application shell
+# OP-003 — Add repositories with managed cloning and build the project shell
 
 **Dependencies:** #1 (OP-001), #2 (OP-002)  
-**Specification:** §§8–9, 19, 21–22, 25.  
-**Acceptance owners:** AC-11, AC-13, initial AC-47/50.
+**Specification:** §§8.1, 9, 18–19, 21.1, 22, 25.  
+**Acceptance owners:** AC-11, AC-13, AC-53–54, AC-57–58, AC-60; shell foundation for AC-55–56.
 
 **Canonical task:** https://github.com/felixlheureux/outpost/issues/3  
 **Repository copy:** Published planning snapshot; update the issue for current requirements.
 
 ### Outcome
 
-The owner can register existing repository workspaces, inspect readiness, switch projects, and navigate Queue, Work, and History without losing the current run.
+On an installation with no projects, the owner chooses Add repository, pastes a GitHub repository URL, and Outpost creates a managed checkout on its Linux host. Setup progress and any real blocker are visible; completed setup opens that project's Queue. From the first project's menu the owner can add another repository, switch projects, and retain isolated settings/history without another permanent runner.
 
 ### Implementation requirements
 
-1. Store project identity, canonical workspace/Git common directory, execution defaults, configured check profiles, Git delivery target, and source configuration references. Do not put credentials in public DTOs.
-2. Inspect existing checkout/branch/remote, staged/unstaged/untracked paths, and provider prerequisites. Registration does not clone, reset, stash, switch branches, rewrite remotes, or authenticate the agent silently.
-3. Detect filesystem aliases and duplicate checkout identities. A second project record cannot bypass workspace exclusion by referring to the same location differently.
-4. Provide readiness with machine codes and concrete next actions for unavailable provider, dirty/unassigned work, changed baseline, missing profiles, missing source setup, and owned worker/check. Mark source-dependent readiness incomplete until OP-004/005 provides it.
-5. Build the prototype's restrained shell: narrow desktop navigation for Queue/Work/History, project selection only when multiple projects exist, secondary project settings and connection diagnostics, and a persistent run bar that names its project/task.
-6. Default landing is Work during active/input-required work, Queue when idle; honor deep links and deliberate navigation. Switching projects does not retarget an active run's controls or instruction draft.
-7. Show actual empty/loading/unavailable states. The global run bar must use real server observations, distinguish stale connection from stopped execution, and link to the owning run even while another project's queue is open.
+1. Make managed cloning the default. Normal setup asks for a GitHub repository link, not a filesystem path or an SSH preparation step. Advanced Use an existing checkout remains available and inspects its existing Git state without cloning/resetting it.
+2. Normalize supported GitHub repository URLs and resolve stable repository identity before choosing a private host destination. Accept normal HTTPS repository links, including an optional `.git` suffix; reject ambiguous/unsupported hosts, unsafe protocols, embedded credentials, and paths that are not repositories with a readable correction. Do not interpolate a URL into a shell command or use its path as a trusted local path.
+3. Use the installation's configured host GitHub access for private repositories, with public cloning when credentials are unnecessary. Missing access is an actionable setup state; do not create another OAuth/login flow per project. Keep credentials out of argv, URLs, progress, and logs. Source/provider readiness is reported separately.
+4. Persist project/setup-operation identity and intent before cloning. Clone using a controlled argv into operation-owned staging below the installation's managed workspace root, then publish/register the completed checkout atomically. Store canonical Git/workspace identity and a managed-versus-existing ownership flag. Subsequent visits reuse the checkout.
+5. Setup is an observable operation: inspecting, cloning, configuring, ready, needs_attention, or interrupted. Expose bounded actual progress, stable operation ID, and retry/cancel/reconcile behavior. Browser/web interruption must not produce a false ready project or duplicate clone. Inspect owned work before retrying; never delete/reset a registered or operator-owned checkout as cleanup.
+6. Add duplicate-identity guards for repeated URLs, `.git`/case aliases, double submission, and requests from two tabs. Reopen/link the existing project or setup operation instead of making another clone. Detect canonical path aliases in advanced mode. A return visit never reclones a working project.
+7. Read repository instructions and manifests, detect the default branch and stack, and inherit installation defaults. Suggest check/delivery settings with provenance when uncertain; do not run discovered dependency/build scripts just because a repository was added. Existing recorded Outpost settings and instructions are preserved. No file is required on the target repository's main branch for registration.
+8. Hand source initialization to OP-004/005: connect Issues, reuse the existing planning branch/manifest, or initialize a missing one as a phase of the explicit Add repository action. Keep a successful clone when source setup fails and retry only that phase. At OP-003's intermediate milestone, source capabilities not implemented yet are explicitly pending; OP-006 proves the complete integrated flow after OP-004/005.
+9. Build a true zero-project screen with a primary Add repository action. Once at least one project exists, provide a current-project menu containing Add repository even when only one project exists. List other projects when present; preserve route/deep-link intent and per-project selection, history, settings, and drafts.
+10. Keep Queue/Work/History compact. A persistent global run bar names the executing project/task while another project is viewed. A selection change never stops/starts work, changes a turn target, carries another project's draft, or rewrites a running assignment. Starting another coding project requires the global execution slot to be safely released.
+11. Repository setup and browsing do not create additional permanent coding runners. Bounded setup work in a new destination can coexist with one coding run elsewhere; it may not touch that run's checkout or bypass workspace exclusion. Adding a repo authorizes setup; an explicit Start authorizes coding.
+12. Provide readiness for source access/setup, provider authentication, check policy, missing initial branch, disk/path errors, dirty/unassigned work in advanced mode, changed dependency baseline, and surviving processes. Keep project setup state distinct from run phase/liveness.
 
 ### Failure and edge cases
 
-Unknown paths and non-Git directories produce readable errors. Archiving a project with unresolved work is rejected. Unsupported provider setup is a readiness reason, not permission to invent a model or claim the installation is ready.
+Cover inaccessible/private/renamed repositories, invalid URL, empty repository/no initial branch, disk exhaustion, network interruption, duplicate clicks, browser/web restart during clone, a completed clone with failed queue setup, and advanced mode pointing to another registered checkout. Preserve existing queues, local edits, instructions, and task assignments. A partial clone must not become ready or trigger a second active clone blindly.
 
 ### Acceptance criteria
 
-- [ ] Two independent repositories can be registered and selected with separate settings.
-- [ ] Alias registration cannot create competing ownership of the same checkout.
-- [ ] Registration leaves Git state unchanged.
-- [ ] The run bar remains correct through project/route changes.
-- [ ] Readiness explains the failed prerequisite and an appropriate next action.
-- [ ] Empty and populated shell layouts remain usable on desktop and a narrow phone.
+- [ ] With zero projects, Add repository is the clear primary action; a GitHub URL is sufficient input for the default path.
+- [ ] A successful add creates the checkout on the Outpost host, displays real setup stages, and opens that project's Queue after integrated source setup.
+- [ ] Private access failures explain the missing host access without leaking credentials; retry preserves completed setup phases.
+- [ ] Repeated URL/double-submit/reconnect returns the same project/operation; returning later reuses the existing checkout.
+- [ ] Clone/source failure and interruption leave a recoverable state without overwriting registered/user-owned files or existing planning data.
+- [ ] From one project, Add repository remains available; two repositories have distinct checkouts/settings/history.
+- [ ] Switching projects while A executes leaves A's assignment/worker/composer target unchanged and visible in the global bar.
+- [ ] Advanced existing-checkout mode preserves its original Git state and enforces canonical ownership.
+- [ ] Setup alone starts no coding task, installs no repository dependencies, and adds no permanent runner.
 
 ### Verification and handoff
 
-Use temporary real Git repositories for identity/baseline observations and one shell navigation journey. Handoff specifies project/readiness DTOs, settings revisions, source-configuration slots, and current-run navigation used by subsequent tasks.
+Use disposable local Git clone fixtures behind a narrow repository-source seam to verify staging, identity, retries, and interruption without a model. Use one integrated browser journey starting empty and adding/switching two fixture-backed repositories after OP-004/005. Separately label actual public/private GitHub account acceptance. Handoff includes setup-operation/project/readiness DTOs, retry semantics, managed ownership, source-phase integration, and project/current-run selection rules.

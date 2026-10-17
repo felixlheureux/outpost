@@ -10,7 +10,7 @@ github_issue: 16
 
 **Dependencies:** #1 (OP-001), #2 (OP-002), #3 (OP-003), #4 (OP-004), #5 (OP-005), #6 (OP-006), #7 (OP-007), #8 (OP-008), #9 (OP-009), #10 (OP-010), #11 (OP-011), #12 (OP-012), #13 (OP-013), #14 (OP-014), #15 (OP-015)  
 **Specification:** §§24–25, 28–29, 33–34.  
-**Acceptance owners:** Final integration of AC-01 through AC-52, especially AC-37–38.
+**Acceptance owners:** Final integration of AC-01 through AC-66, especially AC-37–38 and AC-53–66.
 
 **Canonical task:** https://github.com/felixlheureux/outpost/issues/16  
 **Repository copy:** Published planning snapshot; update the issue for current requirements.
@@ -26,10 +26,18 @@ The first release can be built, installed, backed up, updated, and used for real
 3. Complete the actual sequence: inspect pushed code in a separate GitHub session; create an issue; observe Inbox; queue/reorder; start Follow queue; perform real Codex work; send direction; finish/check/deliver; observe completion reporting; inspect History from another device.
 4. Demonstrate source addition during execution affecting the next boundary and pinning the active task. Demonstrate a safe stop/continuation and a source/reporting interruption without duplicate coding work.
 5. Restart the web service during active work and reconnect. Separately exercise the specified process/receipt failure paths with fixtures; do not require deliberately destructive failure against valuable live work.
-6. Map AC-01 through AC-52 to existing focused test/journey evidence. Combine related cases rather than creating 52 standalone tests. Identify unavailable real-account/host/device evidence honestly.
+6. Map AC-01 through AC-66 to existing focused test/journey evidence. Combine related cases rather than creating 66 standalone tests. Identify unavailable real-account/host/device evidence honestly.
 7. Run final formatting/generation before the agreed relevant gate: Go vet/tests, frontend typecheck/build, required browser journeys, sqlc freshness, and embedded-binary smoke. Use race/host checks where changed concurrency/supervision warrants them. Do not restart unchanged full gates after documentation-only evidence edits.
 8. Record measured idle/resource behavior with host/workload context if available. Do not claim Go memory/speed advantages from language choice alone.
 9. Finalize operator quickstart, GitHub credential/source setup, task template, queue conflict/recovery guide, checks/delivery configuration, stop semantics, logs/retention, backup/update, and troubleshooting.
+
+### Managed repository onboarding
+
+Begin the owner journey with zero registered projects. Add repository by GitHub URL and confirm a host-side managed checkout plus source initialization. Add a second repository through the same menu; switch queues/settings/history and revisit without recloning. Run A while browsing B, preserve drafts and the global bar, safely stop/settle A, then start B with the same single coding slot and return to A's preserved work. Verify existing planning data and target main-branch files survive setup.
+
+### Installation and first-run contract
+
+Ship actual release artifacts and checksums consumed by scripts/install.sh. Validate INSTALL.md from a clean supported Linux host and a separate clean source checkout: release bootstrap/local-binary install, required dependencies, one-time Tailscale/Codex/GitHub setup, unprivileged service and boot behavior, real dashboard URL, then empty-state Add repository. Re-run installation to prove preservation/idempotency; test an unavailable dependency/authentication path without false success. Keep source-only Go/Node toolchains separate from dashboard runtime and state any provider-specific requirement. Replace the starter guide's planning/status notices with actual verified release commands and compatibility before calling this release installable.
 
 ### Failure and edge cases
 
@@ -43,6 +51,13 @@ Fixture success cannot substitute for actual Codex/Tailscale/device acceptance. 
 - [ ] Backup/restore and guarded update/migration preserve records.
 - [ ] The acceptance map names evidence and any remaining limitations explicitly.
 - [ ] No deferred platform features are required to use the release.
+
+- [ ] The actual owner journey includes empty-state URL cloning, a second repository, project switching/reuse, and one safely transferred coding slot.
+- [ ] A setup failure can be retried at its failed phase; existing queue/main-branch content and unfinished work remain intact.
+
+- [ ] The shipped INSTALL.md and installer work on a clean supported host and the source-build instructions work from a clean checkout.
+- [ ] Release asset/checksum selection, dependency/auth setup, idempotent reinstall, and the final private URL are demonstrated with real host evidence.
+- [ ] Unsupported/unavailable prerequisite cases remain actionable and never report a ready installation.
 
 ### Verification and final handoff
 

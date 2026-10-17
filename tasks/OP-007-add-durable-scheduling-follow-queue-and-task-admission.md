@@ -10,7 +10,7 @@ github_issue: 7
 
 **Dependencies:** #2 (OP-002), #3 (OP-003), #5 (OP-005)  
 **Specification:** §§9–12, 18–19, 26.  
-**Acceptance owners:** AC-09–16, AC-25, AC-40–44, AC-51.
+**Acceptance owners:** AC-09–16, AC-25, AC-40–44, AC-51, AC-55–58.
 
 **Canonical task:** https://github.com/felixlheureux/outpost/issues/7  
 **Repository copy:** Published planning snapshot; update the issue for current requirements.
@@ -30,6 +30,10 @@ A run admits exactly one owned task at a time, follows fresh queue changes betwe
 7. Count successful tasks only after checks/delivery settle. Failure/blocked/interrupted work stops automatic advancement and keeps unfinished edits assigned. An empty eligible set distinguishes drained, budget reached, externally closed, and truly blocked work.
 8. Reconcile surviving work before another assignment. A completed task remaining in the manifest is skipped even if GitHub reporting is pending. Source body changes do not implicitly reopen a local execution generation.
 
+### Managed repository onboarding
+
+Project browsing and repository setup are independent of the single global coding slot. A run remains scoped to its recorded project and never switches when the user selects another repository. Do not automatically start B after A drains. After an explicit stop/interruption of A, release the global slot only when all owned coding/check processes are settled and uncertain effects reconciled; unfinished A remains assigned to its own checkout/history. B may then start in its separate workspace without discarding or repairing A first. Resuming A later is explicit and rechecks its preserved assignment/baseline. If A still owns a child/process, explain why B cannot start.
+
 ### Failure and edge cases
 
 External issue closure is not check evidence. A changed checkout may invalidate predecessor availability. Queue outage lets active work finish but blocks the next admission. A drained run settles rather than polling forever. A run reservation is not released just because a display status looks terminal.
@@ -42,6 +46,10 @@ External issue closure is not check evidence. A changed checkout may invalidate 
 - [ ] Concurrent starts/control races produce one writer and no unwanted next task.
 - [ ] Failed assigned work is preserved and not abandoned for another task.
 - [ ] Completion/closure/reopen behavior preserves execution generations and provenance.
+
+- [ ] Selecting/adding another project never retargets a running assignment or starts a second coding worker.
+- [ ] After safe settlement of A, B can run while A's preserved unfinished checkout remains recoverable; surviving A processes still prevent a conflicting start.
+- [ ] A drained run does not automatically jump to another project's queue.
 
 ### Verification and handoff
 

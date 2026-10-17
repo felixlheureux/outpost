@@ -10,7 +10,7 @@ github_issue: 14
 
 **Dependencies:** #6 (OP-006), #10 (OP-010), #13 (OP-013)  
 **Specification:** §21, especially 21.11–12; §22.  
-**Acceptance owners:** AC-32, AC-47–50.
+**Acceptance owners:** AC-32, AC-47–50, AC-53, AC-55–58.
 
 **Canonical task:** https://github.com/felixlheureux/outpost/issues/14  
 **Repository copy:** Published planning snapshot; update the issue for current requirements.
@@ -30,6 +30,10 @@ The same app is comfortable for quick Tailscale check-ins from a phone and does 
 7. Reconnect after sleep/network loss without discarding drafts, falsely claiming liveness, jumping the reader, duplicating a message, or reissuing an execution control automatically.
 8. Remove redundant settings/navigation and prototype-only explanatory text from product flows. Keep implementation details secondary unless they explain a meaningful decision.
 
+### Managed repository onboarding
+
+Include zero-project onboarding and the project menu in the phone/tablet pass. The GitHub URL form and actual clone/configuration progress fit without horizontal overflow, with an actionable retry state. Add repository remains reachable with one project. With two projects, the selector can switch context while the global run bar still identifies the executing project. Long owner/repository names wrap, and a phone reconnect does not submit setup twice or lose the current operation/draft.
+
 ### Failure and edge cases
 
 Use a long task title, long unbroken branch/path, empty Inbox, source conflict, stop-pending state, and unknown message receipt. Test a dialog opened after scrolling and a draft typed before a route change.
@@ -41,6 +45,9 @@ Use a long task title, long unbroken branch/path, empty Inbox, source conflict, 
 - [ ] Keyboard users can inspect/edit/move tasks, send instructions, and close dialogs with sensible focus return.
 - [ ] Reconnection/navigation preserves scoped drafts and reading position.
 - [ ] Light/dark/status/focus contrast passes the chosen accessibility checks.
+
+- [ ] On phone and tablet, empty-state URL onboarding, Add another repository, switching, setup failure/retry, and reconnect are usable.
+- [ ] With A running and B selected, touch controls and draft targets remain unambiguous.
 
 ### Verification and handoff
 

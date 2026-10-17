@@ -10,7 +10,7 @@ github_issue: 5
 
 **Dependencies:** #4 (OP-004)  
 **Specification:** §§8, 18–19, 26.1–6.  
-**Acceptance owners:** AC-40–41, AC-44–45, AC-52.
+**Acceptance owners:** AC-40–41, AC-44–45, AC-52–53, AC-58–59.
 
 **Canonical task:** https://github.com/felixlheureux/outpost/issues/5  
 **Repository copy:** Published planning snapshot; update the issue for current requirements.
@@ -30,6 +30,10 @@ All planners and Outpost use one ordered issue-number list. Reordering changes o
 7. Creation-plus-queueing is a two-step flow: if issue creation succeeds but append fails, expose the created issue in Inbox and retry append only. An issue existing in the list is a no-op append, not a duplicate entry.
 8. Define source unavailability and manual Sync behavior. Background refresh is bounded/configurable; a worker always refreshes at admission independently of the UI poll.
 
+### Managed repository onboarding
+
+Initialize the source as a phase of the explicitly requested Add repository operation. Reuse an existing valid planning branch/file without resetting or replacing its contents. When missing and permissions/base commit allow, create `outpost/queue` and its empty root `queue.json` through GitHub APIs automatically, then mark that setup phase complete. Do not require the normal user to run the developer setup helper, edit JSON, or switch the checkout. Existing malformed/inaccessible data is a named blocker, not permission to overwrite. If source initialization fails after cloning, retry the source phase using the same project/operation. Keep main-branch files unchanged.
+
 ### Failure and edge cases
 
 Completed/closed entries may remain in the list and are skipped with provenance; removal is an explicit planning action. Removing an active issue does not interrupt its pinned assignment. Shared queue storage does not create distributed execution locking across separate installations.
@@ -42,6 +46,10 @@ Completed/closed entries may remain in the list and are skipped with provenance;
 - [ ] An uncertain write is inspected before a retry.
 - [ ] Partial creation/append failure queues the same created issue on recovery.
 - [ ] The current manifest SHA and source-health state are available to scheduler/UI.
+
+- [ ] Adding a new project initializes a missing planning branch/empty manifest automatically from the explicit setup request.
+- [ ] Adding a project with an existing queue preserves its exact contents; a failed queue phase can resume without another clone.
+- [ ] Neither setup nor retries modify target main-branch instructions/templates or switch the coding checkout.
 
 ### Verification and handoff
 

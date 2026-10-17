@@ -10,7 +10,7 @@ github_issue: 4
 
 **Dependencies:** #3 (OP-003)  
 **Specification:** §§7–10, 18–19, 23, 26.1/3/8/10.  
-**Acceptance owners:** AC-07–09, AC-39, AC-45, AC-51–52.
+**Acceptance owners:** AC-07–09, AC-39, AC-45, AC-51–54, AC-58–59.
 
 **Canonical task:** https://github.com/felixlheureux/outpost/issues/4  
 **Repository copy:** Published planning snapshot; update the issue for current requirements.
@@ -30,6 +30,10 @@ Issues created in a separate GitHub review session become readable Outpost tasks
 7. Edit forms carry expected source digest and local revision. Re-read/compare before patch, retain drafts on detected conflict, re-read after writing, and surface concurrent-write uncertainty. Do not claim issue PATCH has the manifest SHA's atomic compare-and-swap semantics.
 8. Treat externally closed issues as external/unverified state. Source edits do not rerun locally settled tasks. Preserve source revisions used by execution and explicit reopen-generation behavior.
 
+### Managed repository onboarding
+
+Reuse the repository identity and private host credential reference established by Add repository. After cloning, the setup coordinator probes issue/source access and connects the selected repository without another per-project sign-in ceremony. Public clone success does not imply issue/queue write permission. A source-auth failure retains the managed clone and project identity and offers retry of the failed source phase. Parsing/synchronization must not modify repository instructions or main-branch files.
+
 ### Failure and edge cases
 
 An inaccessible issue is not automatically missing/deleted. Authentication/rate limits remain distinguishable. No webhook, public callback, or direct ChatGPT-to-tailnet connection is required. A source refresh never replaces the active assignment.
@@ -42,6 +46,9 @@ An inaccessible issue is not automatically missing/deleted. Authentication/rate 
 - [ ] Create/edit success and known/unknown failure have inspectable receipts.
 - [ ] Detected edit conflicts preserve the local draft; no atomic issue-update guarantee is fabricated.
 - [ ] Closed/edited issues do not fabricate checks or silently rerun completed work.
+
+- [ ] Add repository can retain a successful clone while source access is blocked, then finish setup after access is corrected without recloning.
+- [ ] Public/private repository setup uses the configured host access and never exposes credentials in URLs, progress, argv, or diagnostics.
 
 ### Verification and handoff
 

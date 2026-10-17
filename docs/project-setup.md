@@ -2,6 +2,10 @@
 
 This repository is already initialized at https://github.com/felixlheureux/outpost. Its implementation issues are published and mapped in `issue-map.json`; its live manifest is on `outpost/queue`. The steps below explain initialization for another repository or recovery of a missing setup component.
 
+## Normal in-app Add repository
+
+The following developer bootstrap instructions are not required for adding a coding project through the finished app. The normal flow starts with no projects: Add repository → paste a GitHub URL → managed host clone → Issues/queue setup → project's Queue. Existing planning data and main-branch instructions are preserved. Add another repository remains in the project menu from the first project onward. Switch without changing a running assignment; reuse each checkout when returning. Missing access or a failed stage has a named retry action that retains completed setup phases.
+
 ## Initial repository
 
 Choose the destination repository and its visibility. This package does not

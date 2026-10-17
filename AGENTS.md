@@ -7,9 +7,15 @@ Outpost is a small personal control room for coding agents on one Linux host. Re
 - Go + Echo backend. React/TypeScript/Vite/Tailwind/shadcn SPA compiled into the Go executable. Vite/Node are development/build dependencies, not production dashboard servers.
 - SQLite owns local execution state, cached source observations, immutable assignments, and receipts. Private artifacts/logs live outside coding workspaces.
 - GitHub Issues own task requirements. One `queue.json` on `outpost/queue` owns queue membership/order. No second rank field, generated task-file queue, or local-only order is authoritative.
+- Repository onboarding is Add repository → GitHub URL → managed host clone → source setup → Queue. Keep Add another repository available from the first project. Existing checkout is advanced, not the default.
+- Project switching changes browsing context; it never retargets a running assignment/draft or creates another permanent runner. Preserve separate checkout/queue/settings/history for each repository.
 - Tailscale-first private access. Web and worker have independent user-systemd lifecycles. One active execution slot globally in the first release.
 - Default Follow queue refreshes before each new assignment. Active requirements remain pinned. Dependencies/holds/baselines constrain eligibility; manifest order determines the next eligible task.
 - Deferred: billing, hosted tenancy, custom agent harness, parallel worktrees, mandatory planning/review ceremonies, Kanban, notifications, and a second provider. Do not implement these while finishing the first release.
+
+## Installation is a deliverable
+
+Read `INSTALL.md`. OP-002 owns a working release bootstrap plus the canonical `outpost install`, including supported dependency installation, one-time auth guidance, private user services and a verified dashboard URL. OP-001 owns actual source-build commands; OP-008 supplies the real provider installation/compatibility contract. Do not claim a planned script or nonexistent release download already works. Keep release runtime requirements separate from Go/Node source-build tools and any independent provider runtime.
 
 ## Before working
 

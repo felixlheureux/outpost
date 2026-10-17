@@ -10,7 +10,7 @@ github_issue: 6
 
 **Dependencies:** #3 (OP-003), #4 (OP-004), #5 (OP-005)  
 **Specification:** §21.1–6 and §§8, 10, 19.  
-**Acceptance owners:** AC-07–08, AC-39–41, AC-45, AC-47.
+**Acceptance owners:** AC-07–08, AC-39–41, AC-45, AC-47, AC-53, AC-55–60.
 
 **Canonical task:** https://github.com/felixlheureux/outpost/issues/6  
 **Repository copy:** Published planning snapshot; update the issue for current requirements.
@@ -30,6 +30,10 @@ The owner can capture an issue, refine it, deliberately queue it, reorder pendin
 7. Implement a start panel showing project/branch, next eligible task/blockers, Follow queue default, optional Fixed scope, model/reasoning/actual permissions, delivery, task limit, optional runtime budget, and instructions. Until execution integration exists, clearly identify the missing capability rather than simulate success.
 8. Source details and settings live behind secondary actions. Last successful sync and actionable failures are visible without exposing host credentials or making ordinary users manage JSON.
 
+### Managed repository onboarding
+
+Connect the Add repository backend from OP-003 with the source phases from OP-004/005. The first-run screen has no fake selected project: it offers Add repository, a GitHub URL field, and an Add action. Show actual inspection/clone/configuration progress and the failed stage with an appropriate retry action. On successful setup, open the new project's Queue. Once one project exists, its project menu still contains Add repository; with two projects it also switches between them. Project selection, drafts, queues, settings, and history remain isolated. Setup progress survives browser reconnect and duplicate submission without creating a second clone. While A executes, adding/viewing B keeps A visible in the global run bar; B's Start explains the occupied execution slot rather than stopping A or queueing an automatic cross-project handoff.
+
 ### Failure and edge cases
 
 Selection survives a source reorder; removal/closure of the selected issue has an explicit state. Two-tab conflicts keep both source and local intent inspectable. A failed append must not invite another Create issue click as the only recovery path.
@@ -42,6 +46,11 @@ Selection survives a source reorder; removal/closure of the selected issue has a
 - [ ] Stale SHA/source edit conflicts preserve drafts and never claim a rejected write was saved.
 - [ ] The start panel makes its scope and effective settings clear without a second mandatory approval screen.
 - [ ] Keyboard and basic narrow-screen operations work before the later responsive pass.
+
+- [ ] From an empty installation, paste a repository URL → see setup progress → land in the project's Queue without supplying a local path.
+- [ ] Add a second repository from the project menu, switch between A/B, and revisit each without recloning or mixing state.
+- [ ] While A executes, add/view B and return to A; the global run bar and unsent instructions remain correctly targeted.
+- [ ] Clone/source failures show the actual failed phase and retry it without losing a completed checkout or an existing queue.
 
 ### Verification and handoff
 

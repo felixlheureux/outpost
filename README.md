@@ -8,6 +8,10 @@ Outpost is intended to run on your Linux host and be reachable from your Mac or 
 
 **Status:** Starter repository and implementation plan are ready. All 16 implementation tasks are published as GitHub Issues with real dependencies. The actual Go/React application is not implemented yet.
 
+## Installation
+
+See [INSTALL.md](INSTALL.md) for the operator installation/first-run contract. The app and working installer remain implementation tasks; the guide clearly marks that status. Release installation, source building, host dependencies, one-time authentication, and Add repository are covered separately.
+
 ## Start implementation
 
 Begin with [issue #1 — OP-001](https://github.com/felixlheureux/outpost/issues/1). Read `AGENTS.md`, the specification, and the assigned issue before coding. The [live queue](https://github.com/felixlheureux/outpost/blob/outpost/queue/queue.json) is on the dedicated planning branch. Repository task files are reference snapshots; GitHub Issues contain current requirements.
@@ -26,6 +30,12 @@ Push code → review it with an assistant connected to GitHub → create/refine 
 
 No direct public connection from ChatGPT to the private application is needed. Outpost reads GitHub outbound; Tailscale provides private operator access.
 
+## Add and switch repositories in the intended app
+
+With no projects, choose **Add repository**, paste a GitHub URL, and watch Outpost clone it onto the Linux host and configure its source. Successful setup opens that project's Queue. From the project menu, add another repository and switch between them. Checkouts are reused, and each project keeps its own queue/settings/history/drafts. While A runs, browsing B leaves A pinned in the global run bar; only one coding task executes at a time. Existing local checkout registration is an advanced option.
+
+This flow is specified for implementation in issues #3–#6 and its execution behavior in #7; it is not already running code.
+
 ## Chosen stack
 
 Go + Echo; React/TypeScript/Vite/Tailwind/shadcn; SQLite; SSE; user systemd; Tailscale. Vite builds static assets that are embedded in Go. A production Vite/Node dashboard server is not required. Git, Codex, Tailscale, systemd, and repository toolchains remain host prerequisites.
@@ -35,6 +45,7 @@ Go + Echo; React/TypeScript/Vite/Tailwind/shadcn; SQLite; SSE; user systemd; Tai
 | Path | Purpose |
 | --- | --- |
 | `AGENTS.md` | Coding/planning instructions and validation cadence |
+| `INSTALL.md` | Operator installation, dependencies/authentication, first run and lifecycle |
 | `.github/ISSUE_TEMPLATE/task.yml` | Structured ordinary GitHub task issue |
 | `.github/ISSUE_TEMPLATE/bug.yml` | Reproduction-oriented bug issue |
 | `.github/ISSUE_TEMPLATE/config.yml` | Keep ordinary issue creation available |

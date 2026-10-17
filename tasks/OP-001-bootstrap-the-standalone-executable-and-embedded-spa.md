@@ -10,7 +10,7 @@ github_issue: 1
 
 **Dependencies:** None.  
 **Specification:** §§5–7, 18–19, 24–25, 30.  
-**Acceptance owners:** AC-05, AC-06, foundation for AC-37.
+**Acceptance owners:** AC-05–06, foundation for AC-37, AC-61, AC-65.
 
 **Canonical task:** https://github.com/felixlheureux/outpost/issues/1  
 **Repository copy:** Published planning snapshot; update the issue for current requirements.
@@ -30,6 +30,10 @@ A fresh checkout builds one Go executable that serves the actual React applicati
 7. Open SQLite with foreign keys, busy timeout, bounded connections, and short transactions. Apply migrations deliberately; normal web/worker startup must not race to migrate. Add only the tables/columns needed now and extend through later migrations.
 8. Provide `serve`, `version`, and basic `doctor` entry points; reserve `worker` wiring for the supervision task. Document development proxying to Echo and the production build sequence.
 
+### Installation and first-run contract
+
+Establish and document actual clean-checkout source-build prerequisites and commands in INSTALL.md and docs/development.md: pinned supported Go/Node/package-manager toolchains, frontend dependency install from the committed lockfile, frontend build before Go embedding, sqlc/generation where required, and the resulting executable. Do not require the operator to guess commands or treat an unimplemented command as runnable. Source toolchains are not mandatory dashboard runtime dependencies. Provide the locally built binary as the input for OP-002 installer acceptance before public release assets exist.
+
 ### Failure and edge cases
 
 Unsupported newer schema fails clearly. A half-built frontend cannot pass the packaging check. Direct navigation to a frontend route succeeds; a typo in an API/asset route remains a 404. Runtime state directories are outside the source checkout and receive private permissions.
@@ -41,6 +45,9 @@ Unsupported newer schema fails clearly. A half-built frontend cannot pass the pa
 - [ ] A direct frontend-route refresh succeeds while missing API/assets remain 404.
 - [ ] Fresh migrations apply to a temporary SQLite database and reject an unsupported schema.
 - [ ] Typecheck, production build, and a release-binary HTTP smoke check pass.
+
+- [ ] INSTALL.md contains the actual working source-build sequence and clearly separates build tools from release runtime prerequisites.
+- [ ] A clean-checkout build yields the binary used by the host installer without a runtime Vite server.
 
 ### Verification and handoff
 

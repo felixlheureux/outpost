@@ -10,7 +10,7 @@ github_issue: 8
 
 **Dependencies:** #7 (OP-007)  
 **Specification:** §§11–14, 23, 28.  
-**Acceptance owners:** AC-16, AC-26–31 at adapter level, real-provider portion of AC-38.
+**Acceptance owners:** AC-16, AC-26–31 at adapter level, real-provider AC-38, AC-63, AC-66.
 
 **Canonical task:** https://github.com/felixlheureux/outpost/issues/8  
 **Repository copy:** Published planning snapshot; update the issue for current requirements.
@@ -30,6 +30,10 @@ An owned task can run through installed Codex using its actual supported App Ser
 7. Resume an explicit saved session when identity/capability/workspace agree. A missing or rejected session is a clear failure; fresh conversation requires explicit selection and a new linked attempt.
 8. Normalize provider failures into actionable authentication, protocol, permission, interruption, and unknown-outcome states. Provider permission/OS boundaries cannot be elevated by prompt text.
 
+### Installation and first-run contract
+
+Supply the installer with a verified official Codex distribution/version and its actual runtime prerequisites. Detect an existing installation/account before changing anything. Document authentication/status diagnostics and compatibility failures in INSTALL.md. If the chosen distribution needs Node or another runtime, make that an explicit provider prerequisite; do not introduce a frontend dev server or imply the embedded dashboard itself requires Node.
+
 ### Failure and edge cases
 
 Malformed/oversized frames, stderr spam, lost terminal acknowledgement, missing executable, authentication expiry, and unexpected process exit all preserve task assignment and receipts. Avoid automatically retrying a turn whose effects are unknown.
@@ -41,6 +45,9 @@ Malformed/oversized frames, stderr spam, lost terminal acknowledgement, missing 
 - [ ] Saved-session failure never silently starts a fresh conversation.
 - [ ] A real authenticated Codex task performs a small disposable repository change with recorded identities.
 - [ ] Agent claims are not marked runner-verified checks or delivery.
+
+- [ ] The installer/doctor can identify the actual supported Codex version, distribution requirements, and authentication state.
+- [ ] A missing/unsupported provider installation or sign-in produces actionable first-run guidance rather than simulated readiness.
 
 ### Verification and handoff
 
