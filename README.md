@@ -6,7 +6,11 @@ A private control room for your coding agents.
 
 Outpost is intended to run on your Linux host and be reachable from your Mac or phone through Tailscale. GitHub Issues contain the work specifications; a small planning-branch manifest determines order; the host executes through an existing agent such as Codex and retains the results.
 
-**Status:** Specification, detailed backlog, interactive UX reference, and starter repository. The actual Go/React application is not implemented in this package.
+**Status:** Starter repository and implementation plan are ready. All 16 implementation tasks are published as GitHub Issues with real dependencies. The actual Go/React application is not implemented yet.
+
+## Start implementation
+
+Begin with [issue #1 — OP-001](https://github.com/felixlheureux/outpost/issues/1). Read `AGENTS.md`, the specification, and the assigned issue before coding. The [live queue](https://github.com/felixlheureux/outpost/blob/outpost/queue/queue.json) is on the dedicated planning branch. Repository task files are reference snapshots; GitHub Issues contain current requirements.
 
 ## Start here
 
@@ -14,7 +18,7 @@ Outpost is intended to run on your Linux host and be reachable from your Mac or 
 2. Read [Outpost-Technical-Specification.md](Outpost-Technical-Specification.md) for the complete contract.
 3. Follow [Outpost-Implementation-Tasks.md](Outpost-Implementation-Tasks.md) or individual files under [tasks](tasks/), beginning with OP-001.
 4. Open [Outpost-UX-Reference.html](Outpost-UX-Reference.html) locally in a browser to explore the intended layout and interactions.
-5. Follow [docs/project-setup.md](docs/project-setup.md) after choosing the destination GitHub repository.
+5. Use [docs/project-setup.md](docs/project-setup.md) when setting up another installation or repository; this repository already has its tasks and planning branch initialized.
 
 ## The normal loop
 
@@ -42,7 +46,8 @@ Go + Echo; React/TypeScript/Vite/Tailwind/shadcn; SQLite; SSE; user systemd; Tai
 | `docs/project-setup.md` | Initial repository setup and task publication |
 | `docs/development.md` | Implementation/build/verification rules and completion handoff |
 | `docs/prototype-reference.md` | How to interpret and use the interactive reference |
-| `tasks/` | Sixteen detailed bootstrap implementation tasks |
+| `tasks/` | Sixteen published implementation-task reference snapshots |
+| `issue-map.json` | Stable OP planning IDs mapped to actual GitHub Issues |
 | `implementation-plan.json` | Machine-readable bootstrap order and dependency map |
 
 ## Queue authority

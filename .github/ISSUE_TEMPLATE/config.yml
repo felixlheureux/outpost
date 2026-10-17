@@ -1,0 +1,2 @@
+# Ordinary issues remain valid task inputs under project defaults.
+blank_issues_enabled: true

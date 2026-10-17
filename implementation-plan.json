@@ -1,0 +1,329 @@
+{
+  "format": "outpost-bootstrap-plan-v1",
+  "description": "Published bootstrap planning snapshot. GitHub Issues own requirements; outpost/queue:queue.json owns the live order.",
+  "task_order": [
+    "OP-001",
+    "OP-002",
+    "OP-003",
+    "OP-004",
+    "OP-005",
+    "OP-006",
+    "OP-007",
+    "OP-008",
+    "OP-009",
+    "OP-010",
+    "OP-011",
+    "OP-012",
+    "OP-013",
+    "OP-014",
+    "OP-015",
+    "OP-016"
+  ],
+  "tasks": [
+    {
+      "id": "OP-001",
+      "title": "Bootstrap the standalone executable and embedded SPA",
+      "order": 1,
+      "depends_on": [],
+      "path": "tasks/OP-001-bootstrap-the-standalone-executable-and-embedded-spa.md",
+      "state": "published",
+      "github_issue": 1,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/1",
+      "github_dependencies": []
+    },
+    {
+      "id": "OP-002",
+      "title": "Make Tailscale access and supervised execution real",
+      "order": 2,
+      "depends_on": [
+        "OP-001"
+      ],
+      "path": "tasks/OP-002-make-tailscale-access-and-supervised-execution-real.md",
+      "state": "published",
+      "github_issue": 2,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/2",
+      "github_dependencies": [
+        1
+      ]
+    },
+    {
+      "id": "OP-003",
+      "title": "Register projects and build the compact application shell",
+      "order": 3,
+      "depends_on": [
+        "OP-001",
+        "OP-002"
+      ],
+      "path": "tasks/OP-003-register-projects-and-build-the-compact-application-shell.md",
+      "state": "published",
+      "github_issue": 3,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/3",
+      "github_dependencies": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "OP-004",
+      "title": "Make GitHub Issues the task source",
+      "order": 4,
+      "depends_on": [
+        "OP-003"
+      ],
+      "path": "tasks/OP-004-make-github-issues-the-task-source.md",
+      "state": "published",
+      "github_issue": 4,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/4",
+      "github_dependencies": [
+        3
+      ]
+    },
+    {
+      "id": "OP-005",
+      "title": "Implement the shared planning-branch queue",
+      "order": 5,
+      "depends_on": [
+        "OP-004"
+      ],
+      "path": "tasks/OP-005-implement-the-shared-planning-branch-queue.md",
+      "state": "published",
+      "github_issue": 5,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/5",
+      "github_dependencies": [
+        4
+      ]
+    },
+    {
+      "id": "OP-006",
+      "title": "Build Inbox, Queue, the task inspector, and start panel",
+      "order": 6,
+      "depends_on": [
+        "OP-003",
+        "OP-004",
+        "OP-005"
+      ],
+      "path": "tasks/OP-006-build-inbox-queue-the-task-inspector-and-start-panel.md",
+      "state": "published",
+      "github_issue": 6,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/6",
+      "github_dependencies": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "id": "OP-007",
+      "title": "Add durable scheduling, Follow queue, and task admission",
+      "order": 7,
+      "depends_on": [
+        "OP-002",
+        "OP-003",
+        "OP-005"
+      ],
+      "path": "tasks/OP-007-add-durable-scheduling-follow-queue-and-task-admission.md",
+      "state": "published",
+      "github_issue": 7,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/7",
+      "github_dependencies": [
+        2,
+        3,
+        5
+      ]
+    },
+    {
+      "id": "OP-008",
+      "title": "Integrate the real Codex App Server adapter",
+      "order": 8,
+      "depends_on": [
+        "OP-007"
+      ],
+      "path": "tasks/OP-008-integrate-the-real-codex-app-server-adapter.md",
+      "state": "published",
+      "github_issue": 8,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/8",
+      "github_dependencies": [
+        7
+      ]
+    },
+    {
+      "id": "OP-009",
+      "title": "Deliver bounded live activity, reconnect, and private artifacts",
+      "order": 9,
+      "depends_on": [
+        "OP-007",
+        "OP-008"
+      ],
+      "path": "tasks/OP-009-deliver-bounded-live-activity-reconnect-and-private-artifacts.md",
+      "state": "published",
+      "github_issue": 9,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/9",
+      "github_dependencies": [
+        7,
+        8
+      ]
+    },
+    {
+      "id": "OP-010",
+      "title": "Implement Work, live instructions, stop, and continuation",
+      "order": 10,
+      "depends_on": [
+        "OP-006",
+        "OP-008",
+        "OP-009"
+      ],
+      "path": "tasks/OP-010-implement-work-live-instructions-stop-and-continuation.md",
+      "state": "published",
+      "github_issue": 10,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/10",
+      "github_dependencies": [
+        6,
+        8,
+        9
+      ]
+    },
+    {
+      "id": "OP-011",
+      "title": "Own validation receipts and bounded repair",
+      "order": 11,
+      "depends_on": [
+        "OP-008",
+        "OP-009",
+        "OP-010"
+      ],
+      "path": "tasks/OP-011-own-validation-receipts-and-bounded-repair.md",
+      "state": "published",
+      "github_issue": 11,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/11",
+      "github_dependencies": [
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "id": "OP-012",
+      "title": "Verify Git delivery and report results to GitHub",
+      "order": 12,
+      "depends_on": [
+        "OP-004",
+        "OP-005",
+        "OP-011"
+      ],
+      "path": "tasks/OP-012-verify-git-delivery-and-report-results-to-github.md",
+      "state": "published",
+      "github_issue": 12,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/12",
+      "github_dependencies": [
+        4,
+        5,
+        11
+      ]
+    },
+    {
+      "id": "OP-013",
+      "title": "Make history, blockers, and recovery actionable",
+      "order": 13,
+      "depends_on": [
+        "OP-009",
+        "OP-010",
+        "OP-011",
+        "OP-012"
+      ],
+      "path": "tasks/OP-013-make-history-blockers-and-recovery-actionable.md",
+      "state": "published",
+      "github_issue": 13,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/13",
+      "github_dependencies": [
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "id": "OP-014",
+      "title": "Finish phone/tablet operations and accessibility",
+      "order": 14,
+      "depends_on": [
+        "OP-006",
+        "OP-010",
+        "OP-013"
+      ],
+      "path": "tasks/OP-014-finish-phone-tablet-operations-and-accessibility.md",
+      "state": "published",
+      "github_issue": 14,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/14",
+      "github_dependencies": [
+        6,
+        10,
+        13
+      ]
+    },
+    {
+      "id": "OP-015",
+      "title": "Import legacy tasks and prepare a safe VibeEasy cutover",
+      "order": 15,
+      "depends_on": [
+        "OP-004",
+        "OP-005",
+        "OP-007",
+        "OP-012"
+      ],
+      "path": "tasks/OP-015-import-legacy-tasks-and-prepare-a-safe-vibeeasy-cutover.md",
+      "state": "published",
+      "github_issue": 15,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/15",
+      "github_dependencies": [
+        4,
+        5,
+        7,
+        12
+      ]
+    },
+    {
+      "id": "OP-016",
+      "title": "Package the release and prove the complete owner workflow",
+      "order": 16,
+      "depends_on": [
+        "OP-001",
+        "OP-002",
+        "OP-003",
+        "OP-004",
+        "OP-005",
+        "OP-006",
+        "OP-007",
+        "OP-008",
+        "OP-009",
+        "OP-010",
+        "OP-011",
+        "OP-012",
+        "OP-013",
+        "OP-014",
+        "OP-015"
+      ],
+      "path": "tasks/OP-016-package-the-release-and-prove-the-complete-owner-workflow.md",
+      "state": "published",
+      "github_issue": 16,
+      "issue_url": "https://github.com/felixlheureux/outpost/issues/16",
+      "github_dependencies": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ]
+    }
+  ],
+  "repository": "felixlheureux/outpost"
+}

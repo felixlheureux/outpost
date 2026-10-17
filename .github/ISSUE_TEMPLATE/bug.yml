@@ -1,0 +1,31 @@
+name: Bug report
+description: Reproduce an incorrect behavior and define the expected outcome
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: Describe actual versus expected behavior, with the affected flow.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Smallest useful steps, version, environment, and relevant run or commit identity.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - [ ] The reproduction now yields the expected behavior.
+        - [ ] Related recovery behavior remains correct.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Implementation notes
+      description: Bounded evidence and suspected affected code. Keep credentials and private full logs out of the issue.

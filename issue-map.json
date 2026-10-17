@@ -1,0 +1,86 @@
+{
+  "repository": "felixlheureux/outpost",
+  "issues": {
+    "OP-001": {
+      "number": 1,
+      "url": "https://github.com/felixlheureux/outpost/issues/1",
+      "title": "OP-001 — Bootstrap the standalone executable and embedded SPA"
+    },
+    "OP-002": {
+      "number": 2,
+      "url": "https://github.com/felixlheureux/outpost/issues/2",
+      "title": "OP-002 — Make Tailscale access and supervised execution real"
+    },
+    "OP-003": {
+      "number": 3,
+      "url": "https://github.com/felixlheureux/outpost/issues/3",
+      "title": "OP-003 — Register projects and build the compact application shell"
+    },
+    "OP-004": {
+      "number": 4,
+      "url": "https://github.com/felixlheureux/outpost/issues/4",
+      "title": "OP-004 — Make GitHub Issues the task source"
+    },
+    "OP-005": {
+      "number": 5,
+      "url": "https://github.com/felixlheureux/outpost/issues/5",
+      "title": "OP-005 — Implement the shared planning-branch queue"
+    },
+    "OP-006": {
+      "number": 6,
+      "url": "https://github.com/felixlheureux/outpost/issues/6",
+      "title": "OP-006 — Build Inbox, Queue, the task inspector, and start panel"
+    },
+    "OP-007": {
+      "number": 7,
+      "url": "https://github.com/felixlheureux/outpost/issues/7",
+      "title": "OP-007 — Add durable scheduling, Follow queue, and task admission"
+    },
+    "OP-008": {
+      "number": 8,
+      "url": "https://github.com/felixlheureux/outpost/issues/8",
+      "title": "OP-008 — Integrate the real Codex App Server adapter"
+    },
+    "OP-009": {
+      "number": 9,
+      "url": "https://github.com/felixlheureux/outpost/issues/9",
+      "title": "OP-009 — Deliver bounded live activity, reconnect, and private artifacts"
+    },
+    "OP-010": {
+      "number": 10,
+      "url": "https://github.com/felixlheureux/outpost/issues/10",
+      "title": "OP-010 — Implement Work, live instructions, stop, and continuation"
+    },
+    "OP-011": {
+      "number": 11,
+      "url": "https://github.com/felixlheureux/outpost/issues/11",
+      "title": "OP-011 — Own validation receipts and bounded repair"
+    },
+    "OP-012": {
+      "number": 12,
+      "url": "https://github.com/felixlheureux/outpost/issues/12",
+      "title": "OP-012 — Verify Git delivery and report results to GitHub"
+    },
+    "OP-013": {
+      "number": 13,
+      "url": "https://github.com/felixlheureux/outpost/issues/13",
+      "title": "OP-013 — Make history, blockers, and recovery actionable"
+    },
+    "OP-014": {
+      "number": 14,
+      "url": "https://github.com/felixlheureux/outpost/issues/14",
+      "title": "OP-014 — Finish phone/tablet operations and accessibility"
+    },
+    "OP-015": {
+      "number": 15,
+      "url": "https://github.com/felixlheureux/outpost/issues/15",
+      "title": "OP-015 — Import legacy tasks and prepare a safe VibeEasy cutover"
+    },
+    "OP-016": {
+      "number": 16,
+      "url": "https://github.com/felixlheureux/outpost/issues/16",
+      "title": "OP-016 — Package the release and prove the complete owner workflow"
+    }
+  }
+}
+

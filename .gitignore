@@ -1,0 +1,28 @@
+# Generated UI/dependency/build output; source lockfiles remain committed.
+/web/node_modules/
+/web/dist/
+/bin/
+/dist/
+/coverage/
+*.test
+coverage.out
+
+# Local credentials, runtime state, and developer-only config.
+.env
+.env.*
+!.env.example
+*.local
+/state/
+/artifacts/
+/tmp/
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+
+# Editor/OS temporary files.
+.DS_Store
+Thumbs.db
+*.swp
+__pycache__/
+*.pyc

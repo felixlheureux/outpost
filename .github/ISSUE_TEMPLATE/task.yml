@@ -1,0 +1,49 @@
+name: Coding task
+description: A concrete outcome for Outpost or another coding agent
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe one bounded outcome. Creating this issue puts it in Inbox;
+        execution requires explicit queue membership or a single-task start.
+        Queue position belongs in the planning manifest, not this issue.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What should be different when this task is done?
+      placeholder: State the concrete user or system behavior and why it matters.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable results; include important failure cases.
+      placeholder: |
+        - [ ] The intended behavior works.
+        - [ ] Relevant error/recovery behavior is correct.
+        - [ ] Required checks or actual-account limitations are recorded.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Implementation notes
+      description: Relevant source, boundaries, non-goals, and verification context.
+      placeholder: Reference files or commits and explain constraints without prescribing unnecessary abstractions.
+  - type: textarea
+    id: settings
+    attributes:
+      label: Outpost settings
+      description: Optional. Use real same-repository issue numbers and existing project policy names. Keep the fenced block.
+      value: |
+        ```yaml
+        outpost_task: 1
+        kind: implementation
+        depends_on: []
+        hold_reason: null
+        check_profile: inherit
+        delivery: inherit
+        review: inherit
+        ```
