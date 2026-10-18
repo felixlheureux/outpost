@@ -3,12 +3,16 @@ import { expect, test } from "@playwright/test";
 test("URL onboarding and second repository keep separate browsing context", async ({ page }) => {
   const stamp = "2026-10-18T12:00:00Z";
   const projects: Array<Record<string, unknown>> = [];
+  let runningProject: string | null = null;
+  await page.setViewportSize({ width: 390, height: 700 });
   await page.route("**/api/v1/bootstrap", (route) =>
     route.fulfill({
       json: {
         version: "test",
         mode: "development",
-        current_run: null,
+        current_run: runningProject
+          ? { id: "run_a", project_id: runningProject, state: "running", liveness: "active" }
+          : null,
         capabilities: { repository_setup: true, execution: false },
       },
     }),
@@ -61,5 +65,18 @@ test("URL onboarding and second repository keep separate browsing context", asyn
   await expect(page.getByRole("button", { name: "Choose repository" })).toContainText(
     "owner/alpha",
   );
+  runningProject = "project_1";
+  await page.getByRole("button", { name: "Choose repository" }).click();
+  await page.getByRole("menuitem", { name: "owner/beta" }).click();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Choose repository" })).toContainText("owner/beta");
+  await expect(page.locator(".run-bar")).toContainText("owner/alpha");
+  await expect(page.getByRole("link", { name: "Open active work" })).toHaveAttribute(
+    "href",
+    /project_1/,
+  );
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+  ).toBeLessThanOrEqual(1);
   expect(projects).toHaveLength(2);
 });

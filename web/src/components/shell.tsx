@@ -139,6 +139,7 @@ export function Shell({ children }: { children: ReactNode }) {
                     variant="outline"
                     className="project-trigger"
                     aria-label="Choose repository"
+                    aria-description={`Selected ${selectedProject?.name ?? "none"}`}
                   >
                     <GitFork size={16} />
                     <span>{selectedProject?.name ?? "Add repository"}</span>
@@ -210,7 +211,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </header>
             <main id="main-content">{children}</main>
             <footer className="run-bar">
-              <div>
+              <div className="run-bar-status">
                 <Circle size={8} />
                 <strong>
                   {bootstrap.current_run
@@ -223,6 +224,15 @@ export function Shell({ children }: { children: ReactNode }) {
                     : "The execution slot is free."}
                 </span>
               </div>
+              {bootstrap.current_run && (
+                <Link
+                  className="run-bar-open"
+                  to="/work"
+                  search={{ project: bootstrap.current_run.project_id }}
+                >
+                  Open active work
+                </Link>
+              )}
               <span className="run-bar-label">
                 {bootstrap.mode === "private" ? "Private host" : "Local preview"}
               </span>

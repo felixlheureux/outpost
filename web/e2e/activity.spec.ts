@@ -173,6 +173,8 @@ test("activity reconnect preserves the instructions draft and opened reader", as
   });
   await page.route("**/api/v1/runs/run_1/controls", async (route) => {
     const input = route.request().postDataJSON();
+    if (input.action === "finish") stopRequested = true;
+    if (input.action === "undo") stopRequested = false;
     if (input.action === "interrupt") {
       providerState = "interrupted";
       stopRequested = true;
@@ -233,7 +235,13 @@ test("activity reconnect preserves the instructions draft and opened reader", as
       body: `id: ${id}\nevent: activity.appended\ndata: ${JSON.stringify({ cursor: id, project_id: "p", run_id: "run_1", attempt_id: "attempt", kind: "activity.appended", payload: { category: "message", summary: message }, created_at: at })}\n\n`,
     });
   });
+  await page.setViewportSize({ width: 390, height: 700 });
   await page.goto("/work?project=p");
+  await expect(page.getByRole("link", { name: "Open active work" })).toBeVisible();
+  await page.getByRole("button", { name: "Finish task & stop" }).click();
+  await expect(page.getByRole("button", { name: "Undo stop" })).toBeVisible();
+  await page.getByRole("button", { name: "Undo stop" }).click();
+  await expect(page.getByRole("button", { name: "Finish task & stop" })).toBeEnabled();
   await page.getByRole("tab", { name: "Checks" }).click();
   await expect(page.getByText("zero or unknown selected cases")).toBeVisible();
   await page.getByRole("button", { name: "View retained output" }).click();
@@ -271,4 +279,7 @@ test("activity reconnect preserves the instructions draft and opened reader", as
   await page.getByLabel("Continue with instructions").fill("Use the saved diff");
   await page.getByRole("button", { name: "Continue with instructions" }).click();
   await expect(page.getByText(/Targets the next turn/)).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+  ).toBeLessThanOrEqual(1);
 });

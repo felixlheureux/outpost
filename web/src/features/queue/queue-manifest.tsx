@@ -121,6 +121,9 @@ export function QueueManifest({
     return value > 0 ? value : null;
   });
   const listRef = useRef<HTMLDivElement>(null);
+  const detailHeadingRef = useRef<HTMLHeadingElement>(null);
+  const selectedRowRef = useRef<HTMLButtonElement>(null);
+  const lastSelectedRef = useRef(selected);
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = Number(saved(`${contextKey}.scroll`)) || 0;
   }, [contextKey]);
@@ -129,6 +132,11 @@ export function QueueManifest({
     () => remember(`${contextKey}.selected`, String(selected ?? "")),
     [contextKey, selected],
   );
+  useEffect(() => {
+    if (selected !== null && window.matchMedia("(max-width: 900px)").matches) {
+      detailHeadingRef.current?.focus();
+    }
+  }, [selected]);
   const [pendingEdit, setPendingEdit] = useState<Edit | null>(null);
   const [message, setMessage] = useState("");
   const refresh = () => {
@@ -191,14 +199,33 @@ export function QueueManifest({
   }
   const issueURL = (number: number) =>
     byNumber.get(number)?.url ?? `${repositoryURL}/issues/${number}`;
+  function closeDetails() {
+    setSelected(null);
+    window.requestAnimationFrame(() => selectedRowRef.current?.focus());
+  }
   return (
     <section className="queue-workspace" aria-label="Tasks">
       <div className="queue-toolbar">
-        <div role="tablist" aria-label="Task list" className="queue-tabs">
+        <div
+          role="tablist"
+          aria-label="Task list"
+          className="queue-tabs"
+          onKeyDown={(event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            const nextTab = tab === "queued" ? "inbox" : "queued";
+            setTab(event.key === "Home" ? "queued" : event.key === "End" ? "inbox" : nextTab);
+            const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=tab]");
+            buttons[
+              event.key === "Home" ? 0 : event.key === "End" ? 1 : tab === "queued" ? 1 : 0
+            ]?.focus();
+          }}
+        >
           <button
             type="button"
             role="tab"
             aria-selected={tab === "queued"}
+            tabIndex={tab === "queued" ? 0 : -1}
             onClick={() => setTab("queued")}
           >
             Queued <span>{order.length}</span>
@@ -207,6 +234,7 @@ export function QueueManifest({
             type="button"
             role="tab"
             aria-selected={tab === "inbox"}
+            tabIndex={tab === "inbox" ? 0 : -1}
             onClick={() => setTab("inbox")}
           >
             Inbox <span>{inbox.length}</span>
@@ -274,7 +302,7 @@ export function QueueManifest({
           )}
         </div>
       )}
-      <div className="queue-grid">
+      <div className={`queue-grid ${selected !== null ? "show-detail" : ""}`}>
         <div
           className="queue-list"
           role="tabpanel"
@@ -306,7 +334,11 @@ export function QueueManifest({
                   className={`queue-task ${selected === number ? "selected" : ""}`}
                   aria-pressed={selected === number}
                   key={number}
-                  onClick={() => setSelected(number)}
+                  ref={lastSelectedRef.current === number ? selectedRowRef : undefined}
+                  onClick={() => {
+                    lastSelectedRef.current = number;
+                    setSelected(number);
+                  }}
                 >
                   <span className="queue-position">{tab === "queued" ? index + 1 : "·"}</span>
                   <span className="queue-task-main">
@@ -331,11 +363,17 @@ export function QueueManifest({
                   <span className="eyebrow">
                     {selectedPosition >= 0 ? `Queued · position ${selectedPosition + 1}` : "Inbox"}
                   </span>
-                  <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
-                    Close details
+                  <Button size="sm" variant="ghost" onClick={closeDetails}>
+                    Back to tasks
                   </Button>
                 </div>
-                <h2>
+                <h2
+                  ref={detailHeadingRef}
+                  tabIndex={-1}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") closeDetails();
+                  }}
+                >
                   #{selected} {selectedIssue?.title ?? "Issue not observed"}
                 </h2>
                 <p className="queue-status">

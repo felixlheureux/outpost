@@ -6,6 +6,7 @@ const projectName = `owner/${longWord}`;
 const title = `Keep the queue readable when a task contains ${longWord}`;
 
 test("Queue content stays inside its panels on desktop and phone", async ({ page }) => {
+  test.setTimeout(90000);
   let currentRun: null | { id: string; project_id: string; state: string; liveness: string } = null;
   await page.route("**/api/v1/bootstrap", (route) =>
     route.fulfill({
@@ -148,10 +149,17 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
       },
     }),
   );
-  for (const width of [1440, 768, 390, 320]) {
+  for (const width of [1440, 1024, 820, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
+    if (width <= 900 && (await page.locator(".queue-grid.show-detail").count())) {
+      await page.getByRole("button", { name: "Back to tasks" }).click();
+    }
     await page.getByRole("button", { name: /#7 Keep the queue readable/ }).click();
+    if (width <= 900) {
+      await expect(page.locator(".queue-list")).toBeHidden();
+      await expect(page.getByRole("heading", { name: `#7 ${title}` })).toBeFocused();
+    }
     const footerEdges = await page.locator(".queue-inspector").evaluate((inspector) => {
       const panel = inspector.getBoundingClientRect();
       const footer = inspector.querySelector(".queue-inspector-actions")?.getBoundingClientRect();
@@ -201,6 +209,12 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     expect(menuOverflow.left, `menu left edge at ${width}px`).toBeGreaterThanOrEqual(-1);
     expect(menuOverflow.right, `menu right edge at ${width}px`).toBeLessThanOrEqual(1);
     await page.keyboard.press("Escape");
+    if (width <= 900) {
+      await page.getByRole("button", { name: "Back to tasks" }).click();
+      await expect(page.getByRole("button", { name: /#7 Keep the queue readable/ })).toBeFocused();
+      await expect(page.locator(".queue-list")).toBeVisible();
+      await page.getByRole("button", { name: /#7 Keep the queue readable/ }).click();
+    }
     await page.getByRole("button", { name: "Edit task" }).click();
     const dialogOverflow = await page.locator(".issue-editor-dialog").evaluate((element) => ({
       content: element.scrollWidth - element.clientWidth,
