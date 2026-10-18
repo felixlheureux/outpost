@@ -30,7 +30,7 @@ test("embedded SPA, preserved setup draft and mobile navigation", async ({ page,
   await expect(dialog.getByRole("alert")).toContainText("Repository setup needs attention");
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("link", { name: "Work", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "No active run" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Add a repository first" })).toBeVisible();
   await page.getByRole("button", { name: "Choose repository", exact: true }).click();
   await page.getByRole("menuitem", { name: "Add repository" }).click();
   await expect(input).toHaveValue("https://github.com/felixlheureux/outpost");

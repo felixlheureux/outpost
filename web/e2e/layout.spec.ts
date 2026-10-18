@@ -6,12 +6,13 @@ const projectName = `owner/${longWord}`;
 const title = `Keep the queue readable when a task contains ${longWord}`;
 
 test("Queue content stays inside its panels on desktop and phone", async ({ page }) => {
+  let currentRun: null | { id: string; project_id: string; state: string; liveness: string } = null;
   await page.route("**/api/v1/bootstrap", (route) =>
     route.fulfill({
       json: {
         version: "71eea935e70a3a018bdd0d37ac77c50a68836e1f",
         mode: "development",
-        current_run: null,
+        current_run: currentRun,
         capabilities: { repository_setup: true, execution: false },
       },
     }),
@@ -90,9 +91,7 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await page.getByRole("button", { name: /#7 Keep the queue readable/ }).click();
-    await expect(page.getByText("Start work", { exact: true }).first()).toBeVisible();
-    await expect(page.getByLabel("Model")).toBeDisabled();
-    await expect(page.getByLabel("Reasoning")).toBeDisabled();
+    await expect(page.getByLabel("Model")).toHaveCount(0);
     await page.locator(".queue-source-details summary").click();
     const overflow = await page.evaluate(() => {
       const selectors = [
@@ -106,7 +105,6 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
         ".queue-grid",
         ".queue-list",
         ".queue-inspector",
-        ".start-panel",
         ".queue-source-details",
       ];
       return selectors.flatMap((selector) => {
@@ -117,8 +115,6 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
           : [];
       });
     });
-    if (width === 1440 || width === 390)
-      await page.screenshot({ path: `/tmp/outpost-layout-${width}.png`, fullPage: true });
     expect(overflow, `horizontal overflow at ${width}px`).toEqual([]);
     await page.getByRole("button", { name: "More actions" }).click();
     await expect(page.getByRole("menuitem", { name: "Open on GitHub" })).toBeVisible();
@@ -139,5 +135,23 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     }));
     expect(dialogOverflow.content, `dialog content overflow at ${width}px`).toBeLessThanOrEqual(1);
     expect(dialogOverflow.right, `dialog viewport overflow at ${width}px`).toBeLessThanOrEqual(1);
+    await page.keyboard.press("Escape");
+    await page.getByRole("link", { name: "Start work" }).click();
+    await expect(page).toHaveURL(/\/work/);
+    await expect(page.getByLabel("Model")).toBeDisabled();
+    await expect(page.getByLabel("Reasoning")).toBeDisabled();
+    const workOverflow = await page.evaluate(() =>
+      ["html", ".page", ".start-panel"].flatMap((selector) => {
+        const element = document.querySelector(selector);
+        return element && element.scrollWidth > element.clientWidth + 1 ? [selector] : [];
+      }),
+    );
+    expect(workOverflow, `Work overflow at ${width}px`).toEqual([]);
+    if (width === 1440 || width === 390)
+      await page.screenshot({ path: `/tmp/outpost-work-${width}.png`, fullPage: true });
   }
+  currentRun = { id: "run-1", project_id: "project_1", state: "running", liveness: "active" };
+  await page.goto("/work?project=project_1");
+  await expect(page.getByText("Execution slot occupied")).toBeVisible();
+  await expect(page.getByLabel("Model")).toHaveCount(0);
 });

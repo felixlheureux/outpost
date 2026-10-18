@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { GitBranch, GitFork, ListOrdered, Play } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useIssueEditor, useSetup } from "@/components/shell";
@@ -84,6 +84,11 @@ function Queue() {
               Add repository
             </Button>
             <Button onClick={() => openIssueEditor(project.id, project.name)}>New task</Button>
+            <Button asChild variant="outline">
+              <Link to="/work" search={{ project: project.id }}>
+                {bootstrap.current_run ? "Open Work" : "Start work"}
+              </Link>
+            </Button>
           </div>
         </div>
         {project.setup_state !== "ready" && (
@@ -115,7 +120,6 @@ function Queue() {
           projectName={project.name}
           repositoryURL={project.repository_url}
           issues={issueQuery.data?.issues ?? []}
-          currentRun={bootstrap.current_run}
         />
         <details className="issue-source-panel">
           <summary>GitHub issue sync and recent changes</summary>
