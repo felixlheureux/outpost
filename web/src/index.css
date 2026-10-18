@@ -122,6 +122,7 @@
   letter-spacing: -0.04em;
 }
 .brand-mark {
+  flex: none;
   display: grid;
   place-items: center;
   height: 31px;
@@ -161,7 +162,14 @@
 }
 .project-trigger > span {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-align: left;
+}
+.project-trigger > svg {
+  flex: none;
 }
 nav {
   display: flex;
@@ -204,6 +212,12 @@ nav {
   margin-top: 8px;
   color: var(--muted-foreground);
   font-size: 10px;
+}
+.sidebar-meta > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .main-column {
   display: flex;
@@ -255,6 +269,7 @@ nav {
   padding: 39px 42px 50px;
 }
 .page {
+  min-width: 0;
   max-width: 1120px;
   margin: 0 auto;
 }
@@ -264,6 +279,18 @@ nav {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 30px;
+}
+.page-title > div {
+  min-width: 0;
+}
+.page-title .eyebrow {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-title > button {
+  flex: none;
 }
 .page-title .eyebrow {
   margin-bottom: 7px;
@@ -380,9 +407,14 @@ nav {
   align-items: center;
   gap: 10px;
   font-size: 11px;
+  min-width: 0;
 }
 .run-bar strong {
   font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .run-bar span {
   color: var(--muted-foreground);
@@ -415,6 +447,7 @@ nav {
 }
 .form-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 9px;
   margin-top: 15px;
@@ -438,6 +471,9 @@ nav {
   color: var(--muted-foreground);
   margin-bottom: 20px;
 }
+.start-panel-summary > div {
+  min-width: 0;
+}
 .project-list article {
   display: flex;
   align-items: center;
@@ -450,6 +486,23 @@ nav {
 .project-list article h2 {
   font-size: 14px;
   font-weight: 500;
+}
+.project-list article > div {
+  min-width: 0;
+}
+.project-list article h2,
+.project-list article p {
+  overflow-wrap: anywhere;
+}
+.project-list article h2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.project-list article > svg,
+.project-list article > a {
+  flex: none;
 }
 .project-list article p {
   font-size: 12px;
@@ -464,6 +517,7 @@ nav {
 }
 .queue-workspace {
   margin-top: 24px;
+  min-width: 0;
 }
 .queue-toolbar,
 .queue-sync,
@@ -496,11 +550,23 @@ nav {
   color: var(--muted-foreground);
   font-size: 11px;
 }
+.queue-sync > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.queue-sync > button,
+.queue-toolbar > button,
+.queue-inspector-heading > button {
+  flex: none;
+}
 .queue-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
   gap: 16px;
   align-items: start;
+}
+.queue-grid > * {
+  min-width: 0;
 }
 .queue-list,
 .queue-inspector,
@@ -540,6 +606,10 @@ nav {
   min-width: 0;
 }
 .queue-task-main strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   overflow-wrap: anywhere;
   font-weight: 600;
 }
@@ -553,6 +623,12 @@ nav {
 }
 .queue-inspector {
   padding: 18px;
+  overflow-wrap: anywhere;
+  max-height: min(620px, 65dvh);
+  overflow-y: auto;
+}
+.queue-inspector-heading > .eyebrow {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 #main-content .queue-inspector h2 {
@@ -583,6 +659,21 @@ nav {
   gap: 8px;
   margin-top: 18px;
 }
+.queue-inspector-actions {
+  position: sticky;
+  bottom: -18px;
+  margin-right: -18px;
+  margin-bottom: -18px;
+  margin-left: -18px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+}
+.queue-reconcile > span,
+.queue-feedback {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 #main-content .queue-inspector-actions a {
   text-decoration: underline;
 }
@@ -595,27 +686,46 @@ nav {
   margin-top: 16px;
   padding: 18px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  overflow-wrap: anywhere;
+}
+.start-panel-summary {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
+}
+.start-panel-summary > button {
+  flex: none;
 }
 #main-content .start-panel h2 {
   margin: 5px 0;
   font-size: 16px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 #main-content .start-panel p {
   margin: 0;
   color: var(--muted-foreground);
 }
-.start-panel > button {
-  justify-self: start;
-}
 .start-options {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 14px;
   border-top: 1px solid var(--border);
   padding-top: 16px;
 }
+.start-options > button {
+  justify-self: start;
+}
 .start-options fieldset {
   display: flex;
+  flex-wrap: wrap;
   gap: 18px;
   border: 0;
   padding: 0;
@@ -630,6 +740,7 @@ nav {
 }
 .start-options input[type="number"],
 .start-options textarea {
+  width: 100%;
   max-width: 420px;
   padding: 8px;
   border: 1px solid var(--input);
@@ -644,6 +755,7 @@ nav {
   margin-top: 16px;
   color: var(--muted-foreground);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 .onboarding-form {
   width: min(100%, 430px);
@@ -669,6 +781,13 @@ nav {
   .queue-list {
     max-height: 45dvh;
   }
+  .queue-inspector {
+    max-height: none;
+    overflow-y: visible;
+  }
+  .queue-inspector-actions {
+    position: static;
+  }
 }
 .issue-source-heading {
   display: flex;
@@ -691,6 +810,7 @@ nav {
   margin: 12px 0 16px;
   color: var(--muted-foreground);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 .issue-list {
   overflow: hidden;
@@ -724,8 +844,13 @@ nav {
   font-weight: 500;
 }
 .issue-editor-dialog {
+  min-width: 0;
   max-height: calc(100dvh - 2rem);
   overflow-y: auto;
+}
+.issue-editor-dialog > *,
+.issue-editor-dialog .repository-form details {
+  min-width: 0;
 }
 .issue-body-input {
   width: 100%;
@@ -776,6 +901,12 @@ nav {
 .issue-receipt small {
   color: var(--muted-foreground);
   flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.issue-editor-dialog [data-slot="dialog-description"],
+.issue-receipt > span {
+  overflow-wrap: anywhere;
 }
 .issue-receipt button {
   margin-left: auto;
@@ -802,6 +933,10 @@ nav {
   }
 }
 @media (max-width: 700px) {
+  .start-panel-summary {
+    flex-direction: column;
+    gap: 12px;
+  }
   .issue-row {
     grid-template-columns: 42px minmax(0, 1fr) auto;
   }

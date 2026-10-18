@@ -439,29 +439,31 @@ export function QueueManifest({
         </aside>
       </div>
       <div className="start-panel">
-        <div>
-          <span className="eyebrow">Start work</span>
-          <h2>
-            {next
-              ? `Queue candidate: #${next} ${byNumber.get(next)?.title ?? ""}`
-              : "No local queue candidate"}
-          </h2>
-          <p>
-            {next
-              ? `Queued position ${order.indexOf(next) + 1}. ${order.indexOf(next) > 0 ? "Earlier tasks are blocked or closed." : "First in queue."}`
-              : "Queue issues are blocked, closed, or source data is unavailable."}
-          </p>
-          {currentRun && (
-            <p role="status">
-              The execution slot is occupied by{" "}
-              {currentRun.project_id === projectID ? "this repository" : "another repository"} (
-              {currentRun.state}). Open Work to inspect the active run.
+        <div className="start-panel-summary">
+          <div>
+            <span className="eyebrow">Start work</span>
+            <h2>
+              {next
+                ? `Queue candidate: #${next} ${byNumber.get(next)?.title ?? ""}`
+                : "No local queue candidate"}
+            </h2>
+            <p>
+              {next
+                ? `Queued position ${order.indexOf(next) + 1}. ${order.indexOf(next) > 0 ? "Earlier tasks are blocked or closed." : "First in queue."}`
+                : "Queue issues are blocked, closed, or source data is unavailable."}
             </p>
-          )}
+            {currentRun && (
+              <p role="status">
+                The execution slot is occupied by{" "}
+                {currentRun.project_id === projectID ? "this repository" : "another repository"} (
+                {currentRun.state}). Open Work to inspect the active run.
+              </p>
+            )}
+          </div>
+          <Button variant="outline" onClick={() => setStartOpen(!startOpen)}>
+            {startOpen ? "Hide start options" : "Review start options"}
+          </Button>
         </div>
-        <Button variant="outline" onClick={() => setStartOpen(!startOpen)}>
-          {startOpen ? "Hide start options" : "Review start options"}
-        </Button>
         {startOpen && (
           <div className="start-options">
             <p>Repository: {projectName} · Branch: project default (checked at admission)</p>
