@@ -1,6 +1,6 @@
 # Install and onboard Outpost
 
-**Status:** The source-build/local-preview instructions below work. A local-binary `outpost install --prepare` path prepares a private web service without changing an existing Serve route. The installer detects missing Debian/Ubuntu host tools and installs them through scoped apt or official Tailscale/Codex scripts; sign-in remains an explicit user step. Add repository now creates a managed checkout, connects GitHub Issues, and initializes or reuses the planning queue through the host `gh` login. A user-systemd worker fixture verifies supervision and ownership, but real coding execution is not available. The complete owner workflow and public release assets are still being built.
+**Status:** The source-build/local-preview instructions below work. A local-binary `outpost install --prepare` path prepares a private web service without changing an existing Serve route. The installer detects missing Debian/Ubuntu host tools and installs them through scoped apt or official Tailscale/Codex scripts; sign-in remains an explicit user step. Add repository creates a managed checkout, connects GitHub Issues, and initializes or reuses the planning queue through the host `gh` login. An owned worker can now execute an assigned task through Codex App Server and retain its structured handoff. Runner validation, delivery, and the browser Start control are still being built; a provider handoff does not complete an issue. Public release assets are also pending.
 
 ## Choose release installation or source build
 
@@ -57,6 +57,15 @@ The installer guides these human steps only when they are missing:
 Already valid sessions are reused. Tokens/passwords are not written into public configuration output, URLs, process arguments, or logs. The ChatGPT GitHub connection used for remote reviews is distinct from the host credentials used by Outpost.
 
 Missing/expired access is a resumable setup/doctor result, not proof that installation or a project is ready.
+
+Outpost currently supports `codex-cli 0.163.0` through the official Codex
+App Server stdio protocol. Install the official standalone Codex binary as the
+service user, then run `codex --version`, `codex login`, and `codex login status`.
+`outpost doctor` rejects a missing executable, a different version, or missing
+sign-in with a remedy. The tested x86_64 Linux standalone binary is statically
+linked and has no Node runtime requirement. A separate npm-based Codex
+distribution may require Node; this compatibility contract covers the
+standalone binary. The embedded Outpost dashboard does not run a Node server.
 
 ### 4. Configure and start private services
 

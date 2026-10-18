@@ -39,8 +39,12 @@ Normal `serve` checks the configured Tailscale node, allowed login and origin;
 the installer separately checks the Serve route. See INSTALL.md for the private
 integration path. The guided installer preparation is available through
 `scripts/install.sh --binary` and `outpost install --prepare`. Missing supported
-host tools are installed by default, while user-systemd worker supervision is
-covered by a real host fixture. Coding execution still awaits the provider adapter.
+host tools are installed by default. The owned worker can run a pinned assignment
+through the installed Codex App Server. The CLI `outpost run --project ID --model
+MODEL --reasoning EFFORT` reserves a run and launches its worker; choose a model
+and effort returned by the project's `/api/v1/agent/capabilities` endpoint.
+Provider handoff remains assigned until runner checks and delivery are integrated.
+The browser Start control is therefore still disabled.
 
 ## SQL and route generation
 
@@ -97,6 +101,11 @@ helper (docs/dependencies.md). Do not require API-key copying or a new OAuth app
 Setup must run as the eventual service user. Services cannot open an interactive
 login or silently change accounts.
 
-Tests here do not establish actual Codex App Server compatibility, user-systemd
-ownership, Tailscale private identity, GitHub write permissions or phone acceptance.
-Those need real host/account/device evidence in their owning tasks.
+The opt-in `OUTPOST_REAL_CODEX_TEST=1 go test ./internal/codexadapter
+./internal/providerwork` runs real Codex turns in disposable repositories and
+needs an authenticated service-user account. The owned provider test also
+verifies the SQLite receipt and leaves the assignment awaiting validation.
+Ordinary tests use a protocol fixture.
+These tests do not establish production user-systemd ownership, Tailscale private
+identity, GitHub write permissions or phone acceptance. Those need separate host,
+account and device evidence.

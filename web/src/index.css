@@ -723,6 +723,7 @@ nav {
   margin-top: 18px;
   padding: 22px 24px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   overflow-wrap: anywhere;
 }
@@ -743,6 +744,7 @@ nav {
 }
 .start-options {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: 16px;
   border-top: 1px solid var(--border);
@@ -753,9 +755,20 @@ nav {
 }
 .start-field {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 7px;
   min-width: 0;
+}
+.start-field [data-slot="select-trigger"] {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.start-field [data-slot="select-value"] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .start-field > label,
 .start-field > [data-slot="label"] {
@@ -1010,7 +1023,7 @@ nav {
   }
   .start-provider-grid,
   .start-budget-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .queue-toolbar {
     flex-wrap: wrap;

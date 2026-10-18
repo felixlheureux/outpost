@@ -5,9 +5,10 @@ The starter implements the local shell and persistence boundary. The current
 implementation adds a pinned Tailscale operator boundary, a preparation-stage
 private web service, worker ownership fixtures, managed GitHub cloning and an
 issue source projection with durable create/edit receipts, and a GitHub planning
-queue projection with durable edit receipts, the Queue/Inbox workspace, and a
-durable scheduler with fresh-source admission and an eligibility preview. The
-start panel remains disabled until the provider adapter is connected.
+queue projection with durable edit receipts, the Queue/Inbox workspace, a
+durable scheduler with fresh-source admission and an eligibility preview, and
+a Codex App Server adapter with provider attempt receipts. The browser Start
+control remains disabled until runner validation and delivery are connected.
 The complete behavior contract remains the technical specification.
 
 ## Follow a request
@@ -32,6 +33,8 @@ or service layers for every table in advance.
 | `internal/projectsetup` | Durable managed checkout staging, clone and retry |
 | `internal/queue` | Planning manifest validation, source sync, edit and inspection receipts |
 | `internal/scheduler` | Fresh manifest/dependency observation, eligibility, immutable assignment and fixture worker loop |
+| `internal/codexadapter` | Pinned Codex App Server stdio protocol, capability discovery, session controls and structured handoff |
+| `internal/providerwork` | Immutable prompt, private bounded event artifact and owned provider receipt transitions |
 | `internal/supervisor`, `internal/worker` | Recorded worker units, process identity and workspace exclusion |
 | `web/assets*.go` | Production embedding; explicit development build variant |
 | `web/src/routes` | TanStack Router file routes and route-level composition |
@@ -48,6 +51,9 @@ reservation state stays held until worker/process settlement. `run_schedules`,
 `execution_generations`, `assignments`, and `assignment_attempts` own captured
 policy, completion identity, immutable source/baseline snapshots, and attempt
 phase receipts. No task rank field is authoritative.
+`provider_attempts` records one provider intent per assignment, selected
+settings, exact thread/turn IDs and a proposed handoff. A completed provider
+turn advances the attempt to validation without settling the assignment.
 HTTP DTOs omit database internals and host paths.
 
 Use native Git for clone/status/diff/commit/push. Use `gh api` for GitHub Issues,

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/felixlheureux/outpost/internal/codexadapter"
 	"github.com/felixlheureux/outpost/internal/gitcli"
 	"github.com/felixlheureux/outpost/internal/githubcli"
 	"github.com/felixlheureux/outpost/internal/hostcmd"
@@ -163,7 +164,16 @@ func New(out, errOut io.Writer) *cobra.Command {
 			return nil
 		})
 		check("GitHub access", "check gh auth status and network access; sign in with gh auth login when needed", func() error { return githubcli.CheckAuth(ctx) })
-		check("Codex login", "install Codex and sign in using its CLI", func() error { _, err := hostcmd.Run(ctx, "", "codex", nil, "login", "status"); return err })
+		check("Codex provider", "install Codex 0.163.0 and sign in using codex login as the service user", func() error {
+			path, err := codexadapter.FindExecutable()
+			if err != nil {
+				return err
+			}
+			if _, err := codexadapter.Version(ctx, path); err != nil {
+				return err
+			}
+			return codexadapter.AuthStatus(ctx, path)
+		})
 		check("Tailscale login", "install Tailscale and run tailscale up", func() error {
 			b, err := hostcmd.Run(ctx, "", "tailscale", nil, "status", "--json")
 			if err != nil {
@@ -201,7 +211,7 @@ func New(out, errOut io.Writer) *cobra.Command {
 		if repoURL != "" {
 			check("Repository access", "check the URL and the active gh account", func() error { _, err := githubcli.GetRepository(ctx, repoURL); return err })
 		}
-		fmt.Fprintln(out, "Private web preparation and worker supervision fixtures are available. Coding execution and the complete workflow are not implemented.")
+		fmt.Fprintln(out, "Codex adapter readiness is checked. Start controls, validation, and delivery are separate integration stages.")
 		if failures > 0 {
 			return fmt.Errorf("%d setup check(s) need attention", failures)
 		}
@@ -214,5 +224,6 @@ func New(out, errOut io.Writer) *cobra.Command {
 	addStatus(root, &stateDir, out)
 	addStop(root, &stateDir, out)
 	addWorker(root, &stateDir)
+	addRun(root, &stateDir, out)
 	return root
 }

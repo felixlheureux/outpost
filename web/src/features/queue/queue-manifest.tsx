@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  agentCapabilitiesQuery,
   type IssueSource,
   inspectQueueOperation,
   previewAdmission,
@@ -53,7 +54,15 @@ function remember(key: string, value: string) {
   }
 }
 
-function UnavailableSetting({ id, label }: { id: string; label: string }) {
+function UnavailableSetting({
+  id,
+  label,
+  value = "Provider not connected",
+}: {
+  id: string;
+  label: string;
+  value?: string;
+}) {
   return (
     <div className="start-field">
       <Label htmlFor={id}>{label}</Label>
@@ -62,7 +71,7 @@ function UnavailableSetting({ id, label }: { id: string; label: string }) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="unavailable">Provider not connected</SelectItem>
+          <SelectItem value="unavailable">{value}</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -504,6 +513,7 @@ export function StartPanel({
 }) {
   const contextKey = `outpost.queue.${projectID}`;
   const queue = useQuery(projectQueueQuery(projectID));
+  const capabilities = useQuery(agentCapabilitiesQuery(projectID));
   const order = queue.data?.issues ?? [];
   const byNumber = new Map(issues.map((issue) => [issue.number, issue]));
   const next =
@@ -522,6 +532,8 @@ export function StartPanel({
     () => saved(`${contextKey}.runtimeBudget`) ?? "",
   );
   const [instructions, setInstructions] = useState(() => saved(`${contextKey}.instructions`) ?? "");
+  const [model, setModel] = useState(() => saved(`${contextKey}.model`) ?? "");
+  const [reasoning, setReasoning] = useState(() => saved(`${contextKey}.reasoning`) ?? "");
   useEffect(() => remember(`${contextKey}.scope`, scope), [contextKey, scope]);
   useEffect(() => remember(`${contextKey}.taskLimit`, String(taskLimit)), [contextKey, taskLimit]);
   useEffect(
@@ -529,6 +541,15 @@ export function StartPanel({
     [contextKey, runtimeBudget],
   );
   useEffect(() => remember(`${contextKey}.instructions`, instructions), [contextKey, instructions]);
+  useEffect(() => remember(`${contextKey}.model`, model), [contextKey, model]);
+  useEffect(() => remember(`${contextKey}.reasoning`, reasoning), [contextKey, reasoning]);
+  const models = capabilities.data?.models ?? [];
+  const selectedModel =
+    models.find((item) => item.model === model) ?? models.find((item) => item.isDefault);
+  const efforts = selectedModel?.supportedReasoningEfforts ?? [];
+  const selectedReasoning =
+    efforts.find((item) => item.reasoningEffort === reasoning)?.reasoningEffort ??
+    selectedModel?.defaultReasoningEffort;
   const fixedIssue = selected > 0 && order.includes(selected) ? selected : next;
   const preview = useMutation({
     mutationFn: (input: { mode: "follow" | "fixed"; selected: number }) =>
@@ -585,14 +606,67 @@ export function StartPanel({
           </p>
         </div>
         <div className="start-provider-grid">
-          <UnavailableSetting id="start-model" label="Model" />
-          <UnavailableSetting id="start-reasoning" label="Reasoning" />
-          <UnavailableSetting id="start-permissions" label="Permissions" />
-          <UnavailableSetting id="start-delivery" label="Delivery" />
+          {selectedModel ? (
+            <div className="start-field">
+              <Label htmlFor="start-model">Model</Label>
+              <Select
+                value={selectedModel.model}
+                onValueChange={(value) => {
+                  setModel(value);
+                  setReasoning("");
+                }}
+              >
+                <SelectTrigger id="start-model" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((item) => (
+                    <SelectItem key={item.model} value={item.model}>
+                      {item.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <UnavailableSetting id="start-model" label="Model" />
+          )}
+          {selectedModel && selectedReasoning ? (
+            <div className="start-field">
+              <Label htmlFor="start-reasoning">Reasoning</Label>
+              <Select value={selectedReasoning} onValueChange={setReasoning}>
+                <SelectTrigger id="start-reasoning" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {efforts.map((item) => (
+                    <SelectItem key={item.reasoningEffort} value={item.reasoningEffort}>
+                      {item.reasoningEffort}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <UnavailableSetting id="start-reasoning" label="Reasoning" />
+          )}
+          <UnavailableSetting
+            id="start-permissions"
+            label="Permissions"
+            value={capabilities.data ? "Workspace write · approval on request" : undefined}
+          />
+          <UnavailableSetting
+            id="start-delivery"
+            label="Delivery"
+            value="Delivery not configured"
+          />
         </div>
         <p className="start-help">
-          Outpost will show supported choices from the installed Codex provider when the adapter is
-          connected. No model or permission is assumed.
+          {capabilities.data
+            ? `${capabilities.data.version} catalog. Availability is confirmed when a turn starts. Start remains unavailable until validation and delivery are connected.`
+            : capabilities.isError
+              ? `Codex settings are unavailable: ${capabilities.error.message}`
+              : "Checking installed Codex models and reasoning options…"}
         </p>
         <div className="start-budget-grid">
           <div className="start-field">

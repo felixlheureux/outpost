@@ -61,10 +61,10 @@ func Launch(ctx context.Context, db *store.Store, run store.Run, executable, sta
 	if observed.LoadState != "not-found" {
 		return observed, fmt.Errorf("recorded unit already exists in state %s", observed.ActiveState)
 	}
-	if !fixtureHold {
-		return observed, fmt.Errorf("provider worker launch is unavailable until the adapter is integrated")
+	args := []string{"--user", "--collect", "--unit=" + strings.TrimSuffix(run.UnitName, ".service"), "--property=Type=exec", "--property=KillMode=control-group", executable, "--state-dir", stateDir, "worker", "--run-id", run.ID, "--launch-token", run.LaunchToken}
+	if fixtureHold {
+		args = append(args, "--fixture-hold")
 	}
-	args := []string{"--user", "--collect", "--unit=" + strings.TrimSuffix(run.UnitName, ".service"), "--property=Type=exec", "--property=KillMode=control-group", executable, "--state-dir", stateDir, "worker", "--run-id", run.ID, "--launch-token", run.LaunchToken, "--fixture-hold"}
 	_, launchErr := hostcmd.Run(ctx, "", "systemd-run", nil, args...)
 	observed, observeErr := Observe(ctx, run.UnitName)
 	if observeErr == nil && observed.ActiveState == "active" && observed.MainPID > 0 {

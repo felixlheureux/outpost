@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/felixlheureux/outpost/internal/codexadapter"
 	"github.com/felixlheureux/outpost/internal/gitcli"
 	"github.com/felixlheureux/outpost/internal/githubcli"
 	"github.com/felixlheureux/outpost/internal/hostcmd"
@@ -142,8 +143,15 @@ func checkInstallHost(ctx context.Context, installDeps bool, out io.Writer) erro
 	if err := githubcli.CheckAuth(ctx); err != nil {
 		return fmt.Errorf("GitHub CLI sign-in is unavailable; run gh auth login as this user, then rerun install: %w", err)
 	}
-	if _, err := hostcmd.Run(ctx, "", "codex", nil, "login", "status"); err != nil {
-		return fmt.Errorf("Codex sign-in is unavailable; run codex login as this user, then rerun install: %w", err)
+	codexPath, err := codexadapter.FindExecutable()
+	if err != nil {
+		return err
+	}
+	if _, err := codexadapter.Version(ctx, codexPath); err != nil {
+		return err
+	}
+	if err := codexadapter.AuthStatus(ctx, codexPath); err != nil {
+		return err
 	}
 	if _, err := hostcmd.Run(ctx, "", "systemctl", nil, "--user", "list-jobs", "--no-legend"); err != nil {
 		return fmt.Errorf("user systemd bus is unavailable: %w", err)

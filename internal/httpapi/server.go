@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/felixlheureux/outpost/internal/codexadapter"
 	"github.com/felixlheureux/outpost/internal/githubcli"
 	"github.com/felixlheureux/outpost/internal/issues"
 	"github.com/felixlheureux/outpost/internal/privateaccess"
@@ -86,6 +87,9 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 						(strings.HasSuffix(c.Request().URL.Path, "/retry") || strings.HasSuffix(c.Request().URL.Path, "/issues/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/operations") || strings.HasSuffix(c.Request().URL.Path, "/admission-preview") || strings.HasSuffix(c.Request().URL.Path, "/inspect")))) {
 				timeout = 10 * time.Minute
 			}
+			if c.Request().Method == http.MethodGet && c.Request().URL.Path == "/api/v1/agent/capabilities" {
+				timeout = 20 * time.Second
+			}
 			ctx, cancel := context.WithTimeout(c.Request().Context(), timeout)
 			defer cancel()
 			c.SetRequest(c.Request().WithContext(ctx))
@@ -127,6 +131,33 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 			"version": version, "mode": mode, "current_run": currentRun,
 			"capabilities": map[string]bool{"repository_setup": workspacesDir != "", "execution": false},
 		})
+	})
+	e.GET("/api/v1/agent/capabilities", func(c *echo.Context) error {
+		projectID := c.QueryParam("project")
+		if projectID == "" {
+			return fail(c, 400, "project_required", "Choose a repository before checking Codex settings.")
+		}
+		project, err := db.GetProjectSetup(c.Request().Context(), projectID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		}
+		if err != nil {
+			return err
+		}
+		if project.State != "ready" {
+			return fail(c, 409, "project_not_ready", "Finish repository setup before starting work.")
+		}
+		executable, err := codexadapter.FindExecutable()
+		if err != nil {
+			return fail(c, 503, "provider_missing", "Install Codex for the Outpost service user, then sign in with codex login.")
+		}
+		capabilities, err := codexadapter.Probe(c.Request().Context(), executable, project.WorkspacePath)
+		if err != nil {
+			logger.Warn("Codex capability probe failed", "error", err)
+			return fail(c, 503, "provider_unavailable", "Codex 0.163.0 and a working codex login are required for this release. Run outpost doctor for details.")
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, capabilities)
 	})
 	e.GET("/api/v1/projects", func(c *echo.Context) error {
 		rows, err := db.Queries.ListProjects(c.Request().Context())

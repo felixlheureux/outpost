@@ -87,6 +87,36 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
   await page.route("**/api/v1/projects/project_1/queue/operations", (route) =>
     route.fulfill({ json: { operations: [] } }),
   );
+  await page.route("**/api/v1/agent/capabilities?project=project_1", (route) =>
+    route.fulfill({
+      json: {
+        version: "codex-cli 0.163.0",
+        models: [
+          {
+            model: "fixture-a",
+            displayName: "Fixture A",
+            hidden: false,
+            isDefault: true,
+            defaultReasoningEffort: "medium",
+            supportedReasoningEfforts: [{ reasoningEffort: "low" }, { reasoningEffort: "medium" }],
+          },
+          {
+            model: "fixture-b",
+            displayName: "Fixture B",
+            hidden: false,
+            isDefault: false,
+            defaultReasoningEffort: "high",
+            supportedReasoningEfforts: [{ reasoningEffort: "high" }],
+          },
+        ],
+        resume: true,
+        steer: true,
+        interrupt: true,
+        structured_results: true,
+        permission_controls: true,
+      },
+    }),
+  );
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
@@ -150,8 +180,8 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     await page.keyboard.press("Escape");
     await page.getByRole("link", { name: "Start work" }).click();
     await expect(page).toHaveURL(/\/work/);
-    await expect(page.getByLabel("Model")).toBeDisabled();
-    await expect(page.getByLabel("Reasoning")).toBeDisabled();
+    await expect(page.getByLabel("Model")).toBeEnabled();
+    await expect(page.getByLabel("Reasoning")).toBeEnabled();
     const workOverflow = await page.evaluate(() =>
       ["html", ".page", ".start-panel"].flatMap((selector) => {
         const element = document.querySelector(selector);

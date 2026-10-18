@@ -73,6 +73,35 @@ export const projectsQuery = queryOptions({
   queryFn: () => request("/projects", projects),
 });
 
+const agentCapabilities = z.object({
+  version: z.string(),
+  models: z.array(
+    z.object({
+      model: z.string(),
+      displayName: z.string(),
+      hidden: z.boolean(),
+      isDefault: z.boolean(),
+      defaultReasoningEffort: z.string(),
+      supportedReasoningEfforts: z.array(z.object({ reasoningEffort: z.string() })),
+    }),
+  ),
+  resume: z.boolean(),
+  steer: z.boolean(),
+  interrupt: z.boolean(),
+  structured_results: z.boolean(),
+  permission_controls: z.boolean(),
+});
+
+export function agentCapabilitiesQuery(projectID: string) {
+  return queryOptions({
+    queryKey: ["projects", projectID, "agent", "capabilities"],
+    queryFn: () =>
+      request(`/agent/capabilities?project=${encodeURIComponent(projectID)}`, agentCapabilities),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
 export function addRepository(repositoryURL: string) {
   return request("/projects", project.omit({ created_at: true }), {
     method: "POST",
