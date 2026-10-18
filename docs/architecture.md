@@ -35,6 +35,7 @@ or service layers for every table in advance.
 | `internal/scheduler` | Fresh manifest/dependency observation, eligibility, immutable assignment and fixture worker loop |
 | `internal/codexadapter` | Pinned Codex App Server stdio protocol, capability discovery, session controls and structured handoff |
 | `internal/providerwork` | Immutable prompt, private bounded event artifact and owned provider receipt transitions |
+| `activity_events`, `activity_artifacts` | Bounded notifications and allowlisted private output manifest; see `docs/activity.md` |
 | `internal/supervisor`, `internal/worker` | Recorded worker units, process identity and workspace exclusion |
 | `web/assets*.go` | Production embedding; explicit development build variant |
 | `web/src/routes` | TanStack Router file routes and route-level composition |
@@ -54,6 +55,9 @@ phase receipts. No task rank field is authoritative.
 `provider_attempts` records one provider intent per assignment, selected
 settings, exact thread/turn IDs and a proposed handoff. A completed provider
 turn advances the attempt to validation without settling the assignment.
+`activity_events` provides replay cursors and small event payloads; business
+receipts remain authoritative. Provider output lives under private state and
+is exposed only through an artifact ID.
 HTTP DTOs omit database internals and host paths.
 
 Use native Git for clone/status/diff/commit/push. Use `gh api` for GitHub Issues,
@@ -105,16 +109,10 @@ the navigation into a top strip. Honor reduced motion and visible focus.
 
 ## Next integration points
 
-OP-002: verify the private Serve cutover and owner-device access when the
-replacement workflow is usable, and connect worker supervision to actual runs.
-OP-003: connect the managed checkout to issue/queue source setup and complete
-interrupted-clone recovery and readiness reporting. Advanced existing-checkout
-registration and guarded setup retry are available.
-OP-005: verify a real GitHub planning-branch read/write and source setup with the
-service user's account. The local implementation uses fixture GitHub responses.
-OP-008: connect the claimed worker to `scheduler.Engine.Drive` with real provider,
-check, and delivery receipts. The scheduler's fixture callback proves admission
-timing; it is not actual Codex execution. The admission preview returns the
-current selected issue, waiting codes, queue SHA, and fetch time. Effective
-model/reasoning/permission settings remain unavailable until provider readiness
-exists, so Start remains disabled.
+OP-010 owns live instruction receipts, stop/interrupt and continuation controls.
+OP-011 owns runner-verified checks and OP-012 owns Git delivery. The browser
+Start control remains disabled until these completion boundaries are connected.
+The Work activity stream reads real SQLite cursors and provider artifacts;
+`docs/activity.md` defines its reset, preview and retention rules. The private
+Serve cutover, owner-device acceptance and real GitHub planning-branch write
+still require their separate host/account verification.

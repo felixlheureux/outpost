@@ -69,6 +69,7 @@ func NewWithRepositorySetup(db *store.Store, assets fs.FS, version string, logge
 
 func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logger, access *privateaccess.Config, stateDir, workspacesDir string) http.Handler {
 	e := echo.New()
+	activitySlots := make(chan struct{}, 8)
 	e.HTTPErrorHandler = func(c *echo.Context, err error) {
 		logger.Error("request failed", "request_id", c.Response().Header().Get("X-Request-ID"), "error", err)
 		_ = fail(c, http.StatusInternalServerError, "internal_error", "The request could not be completed.")
@@ -81,6 +82,9 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 			}
 			c.Response().Header().Set("X-Request-ID", hex.EncodeToString(id))
 			timeout := 15 * time.Second
+			if c.Request().Method == http.MethodGet && c.Request().URL.Path == "/api/v1/activity/stream" {
+				return next(c)
+			}
 			if c.Request().Method == http.MethodPost &&
 				(c.Request().URL.Path == "/api/v1/projects" ||
 					(strings.HasPrefix(c.Request().URL.Path, "/api/v1/projects/") &&
@@ -159,6 +163,7 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 		c.Response().Header().Set("Cache-Control", "no-store")
 		return c.JSON(200, capabilities)
 	})
+	registerActivityRoutes(e, db, stateDir, activitySlots)
 	e.GET("/api/v1/projects", func(c *echo.Context) error {
 		rows, err := db.Queries.ListProjects(c.Request().Context())
 		if err != nil {

@@ -45,6 +45,8 @@ MODEL --reasoning EFFORT` reserves a run and launches its worker; choose a model
 and effort returned by the project's `/api/v1/agent/capabilities` endpoint.
 Provider handoff remains assigned until runner checks and delivery are integrated.
 The browser Start control is therefore still disabled.
+While a run exists, Work now shows retained activity and a reconnecting live
+stream. See `docs/activity.md` for cursor, reset, preview and artifact bounds.
 
 ## SQL and route generation
 

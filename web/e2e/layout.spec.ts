@@ -194,6 +194,13 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
   }
   currentRun = { id: "run-1", project_id: "project_1", state: "running", liveness: "active" };
   await page.goto("/work?project=project_1");
-  await expect(page.getByText("Execution slot occupied")).toBeVisible();
+  await expect(page.getByText("Current run")).toBeVisible();
   await expect(page.getByLabel("Model")).toHaveCount(0);
+  const activeOverflow = await page.evaluate(() =>
+    ["html", ".page", ".activity-work"].filter((selector) => {
+      const element = document.querySelector(selector);
+      return element && element.scrollWidth > element.clientWidth + 1;
+    }),
+  );
+  expect(activeOverflow).toEqual([]);
 });

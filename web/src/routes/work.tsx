@@ -3,6 +3,7 @@ import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StartPanel } from "@/features/queue/queue-manifest";
+import { ActivityView } from "@/features/work/activity-view";
 import { bootstrapQuery, projectIssuesQuery, projectsQuery } from "@/lib/api";
 
 export const Route = createFileRoute("/work")({ component: Work });
@@ -40,6 +41,8 @@ function Work() {
             <Link to="/">Open Queue</Link>
           </Button>
         </div>
+      ) : bootstrap.current_run && bootstrap.current_run.project_id === project.id ? (
+        <ActivityView key={bootstrap.current_run.id} runID={bootstrap.current_run.id} />
       ) : bootstrap.current_run ? (
         <div className="work-state" role="status">
           <p className="eyebrow">Execution slot occupied</p>

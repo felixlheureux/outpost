@@ -10,7 +10,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
+	"unicode/utf8"
 
 	"github.com/felixlheureux/outpost/internal/codexadapter"
 	"github.com/felixlheureux/outpost/internal/store"
@@ -82,8 +84,9 @@ func readInstructions(workspace string) (string, error) {
 }
 
 type eventFile struct {
-	f       *os.File
-	written int64
+	f         *os.File
+	written   int64
+	truncated bool
 }
 
 func (e *eventFile) record(event codexadapter.Event) error {
@@ -92,17 +95,72 @@ func (e *eventFile) record(event codexadapter.Event) error {
 		return err
 	}
 	if e.written+int64(len(b)+1) > 8<<20 {
-		return fmt.Errorf("provider event artifact reached its 8 MiB bound")
+		e.truncated = true
+		return nil
 	}
 	n, err := e.f.Write(append(b, '\n'))
 	e.written += int64(n)
+	if err == nil && n != len(b)+1 {
+		return io.ErrShortWrite
+	}
 	return err
+}
+
+func preview(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	end := max
+	for end > 0 && !utf8.ValidString(s[:end]) {
+		end--
+	}
+	return s[:end] + "… [preview truncated; open artifact for retained output]"
+}
+
+func providerSummary(event codexadapter.Event) (category, summary string) {
+	switch event.Method {
+	case "item/started", "item/completed":
+		var v struct {
+			Item struct {
+				Type     string `json:"type"`
+				Text     string `json:"text"`
+				ExitCode *int   `json:"exitCode"`
+			} `json:"item"`
+		}
+		if json.Unmarshal(event.Params, &v) != nil {
+			return "", ""
+		}
+		switch v.Item.Type {
+		case "agentMessage":
+			if event.Method == "item/completed" {
+				return "message", preview(v.Item.Text, 11<<10)
+			}
+		case "commandExecution":
+			if event.Method == "item/started" {
+				return "command", "Command started"
+			}
+			if v.Item.ExitCode != nil {
+				return "command", fmt.Sprintf("Command exited with code %d", *v.Item.ExitCode)
+			}
+			return "command", "Command finished"
+		case "fileChange":
+			if event.Method == "item/completed" {
+				return "change", "File changes proposed by provider"
+			}
+		}
+	case "turn/completed":
+		return "turn", "Provider turn finished; runner validation is still required"
+	}
+	return "", ""
 }
 
 // Execute writes intent before the task turn and stores exact provider IDs.
 // A completed handoff advances to validation; it is never task success.
 func Execute(ctx context.Context, db *store.Store, stateDir, executable string, assignment store.Assignment, schedule store.Schedule, workspace string) (codexadapter.Completion, error) {
 	var zero codexadapter.Completion
+	if !regexp.MustCompile(`^[A-Za-z0-9_]{1,100}$`).MatchString(assignment.ID) {
+		return zero, fmt.Errorf("invalid assignment artifact identity")
+	}
 	p, err := ParsePolicy(schedule.PolicyJSON)
 	if err != nil {
 		return zero, err
@@ -129,6 +187,8 @@ func Execute(ctx context.Context, db *store.Store, stateDir, executable string, 
 	if err := db.BeginProvider(ctx, store.ProviderAttempt{AssignmentID: assignment.ID, Version: version, Model: settings.Model, Reasoning: settings.Reasoning, Sandbox: settings.Sandbox, ApprovalPolicy: settings.ApprovalPolicy, Prompt: prompt}); err != nil {
 		return zero, err
 	}
+	var artifact *store.ActivityArtifact
+	var events *eventFile
 	finishFailure := func(cause error) error {
 		state, code := "failed", "provider_error"
 		if errors.Is(cause, codexadapter.ErrUnknown) || errors.Is(cause, context.Canceled) {
@@ -136,22 +196,46 @@ func Execute(ctx context.Context, db *store.Store, stateDir, executable string, 
 		}
 		settle, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		if artifact != nil && events != nil {
+			if err := db.UpdateArtifact(settle, artifact.ID, events.written, events.truncated); err != nil {
+				cause = fmt.Errorf("%w; artifact receipt update failed: %v", cause, err)
+			}
+		}
 		if err := db.FinishProvider(settle, assignment.ID, state, "", code); err != nil {
 			return fmt.Errorf("%w; provider receipt update failed: %v", cause, err)
 		}
 		return cause
 	}
 	// Private artifacts are outside the checkout and never served by a path URL.
-	dir := filepath.Join(stateDir, "provider")
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	createdArtifact, err := db.BeginProviderArtifact(ctx, assignment.ID)
+	if err != nil {
 		return zero, finishFailure(err)
 	}
-	log, err := os.OpenFile(filepath.Join(dir, assignment.ID+".jsonl"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	artifact = &createdArtifact
+	root, err := os.OpenRoot(stateDir)
+	if err != nil {
+		return zero, finishFailure(err)
+	}
+	defer root.Close()
+	relDir := filepath.ToSlash(filepath.Dir(artifact.RelativePath))
+	if err := root.MkdirAll(relDir, 0700); err != nil {
+		return zero, finishFailure(err)
+	}
+	for _, dir := range []string{"artifacts", "artifacts/" + artifact.RunID, relDir} {
+		info, err := root.Lstat(dir)
+		if err != nil {
+			return zero, finishFailure(err)
+		}
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return zero, finishFailure(fmt.Errorf("unsafe provider artifact directory"))
+		}
+	}
+	log, err := root.OpenFile(artifact.RelativePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return zero, finishFailure(err)
 	}
 	defer log.Close()
-	events := &eventFile{f: log}
+	events = &eventFile{f: log}
 	c, err := codexadapter.Start(ctx, executable, workspace)
 	if err != nil {
 		return zero, finishFailure(err)
@@ -191,11 +275,31 @@ func Execute(ctx context.Context, db *store.Store, stateDir, executable string, 
 	if err := db.ProviderTurn(ctx, assignment.ID, turnID); err != nil {
 		return zero, finishFailure(err)
 	}
-	result, err := c.WaitTurn(ctx, threadID, turnID, events.record)
+	var reportedBytes int64
+	var reportedTruncated bool
+	result, err := c.WaitTurn(ctx, threadID, turnID, func(event codexadapter.Event) error {
+		if err := events.record(event); err != nil {
+			return err
+		}
+		if events.written-reportedBytes >= 64<<10 || (events.truncated && !reportedTruncated) {
+			if err := db.UpdateArtifact(ctx, artifact.ID, events.written, events.truncated); err != nil {
+				return err
+			}
+			reportedBytes, reportedTruncated = events.written, events.truncated
+		}
+		category, summary := providerSummary(event)
+		if category != "" {
+			return db.AppendProviderActivity(ctx, assignment.ID, category, summary, artifact.ID)
+		}
+		return nil
+	})
 	if err != nil {
 		return result, finishFailure(err)
 	}
 	if err := log.Sync(); err != nil {
+		return result, finishFailure(err)
+	}
+	if err := db.UpdateArtifact(ctx, artifact.ID, events.written, events.truncated); err != nil {
 		return result, finishFailure(err)
 	}
 	b, _ := json.Marshal(result.Handoff)

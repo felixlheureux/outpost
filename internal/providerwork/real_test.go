@@ -91,6 +91,26 @@ func TestRealOwnedProviderHandoff(t *testing.T) {
 	if receipt.State != "completed" || receipt.ThreadID != result.ThreadID || receipt.TurnID != result.TurnID || receipt.Prompt == "" {
 		t.Fatalf("provider receipt incomplete: %+v", receipt)
 	}
+	artifact, err := db.GetActivityArtifact(ctx, "artifact_a")
+	if err != nil || artifact.BytesWritten == 0 || artifact.Truncated {
+		t.Fatalf("real provider artifact: %+v %v", artifact, err)
+	}
+	if info, err := os.Stat(filepath.Join(state, artifact.RelativePath)); err != nil || info.Size() != artifact.BytesWritten {
+		t.Fatalf("retained provider file: %v %v", info, err)
+	}
+	activity, err := db.ReplayActivity(ctx, "r", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	visible := false
+	for _, event := range activity {
+		if event.Kind == "activity.appended" && event.ArtifactID == artifact.ID {
+			visible = true
+		}
+	}
+	if !visible {
+		t.Fatal("real provider output did not produce a retained activity reference")
+	}
 	var phase, assignmentState string
 	if err := db.DB.QueryRowContext(ctx, `SELECT phase FROM assignment_attempts WHERE assignment_id='a'`).Scan(&phase); err != nil {
 		t.Fatal(err)

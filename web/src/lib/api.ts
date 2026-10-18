@@ -102,6 +102,69 @@ export function agentCapabilitiesQuery(projectID: string) {
   });
 }
 
+export const activityEvent = z.object({
+  cursor: z.number().int().nonnegative(),
+  project_id: z.string(),
+  run_id: z.string(),
+  attempt_id: z.string(),
+  kind: z.string(),
+  payload: z.record(z.string(), z.unknown()),
+  artifact_id: z.string().optional(),
+  created_at: z.string(),
+});
+export type ActivityEvent = z.infer<typeof activityEvent>;
+
+export const activitySnapshot = z.object({
+  cursor: z.number().int().nonnegative(),
+  oldest_cursor: z.number().int().nonnegative(),
+  pruned_through: z.number().int().nonnegative().optional(),
+  run_id: z.string(),
+  project_id: z.string(),
+  run_state: z.string(),
+  assignment_id: z.string().optional(),
+  attempt_phase: z.string().optional(),
+  provider_state: z.string().optional(),
+  provider_version: z.string().optional(),
+  model: z.string().optional(),
+  reasoning: z.string().optional(),
+  sandbox: z.string().optional(),
+  approval_policy: z.string().optional(),
+});
+export const activityPage = z.object({
+  snapshot: activitySnapshot,
+  events: z.array(activityEvent),
+  next_before: z.number().int().nonnegative(),
+  history_truncated: z.boolean(),
+});
+export type ActivityPage = z.infer<typeof activityPage>;
+export function activityPageQuery(runID: string) {
+  return queryOptions({
+    queryKey: ["runs", runID, "activity"],
+    queryFn: () => request(`/runs/${encodeURIComponent(runID)}/activity`, activityPage),
+    retry: false,
+  });
+}
+export function olderActivity(runID: string, before: number) {
+  return request(`/runs/${encodeURIComponent(runID)}/activity?before=${before}`, activityPage);
+}
+export const artifactPreview = z.object({
+  artifact_id: z.string(),
+  text: z.string(),
+  offset: z.number().int().nonnegative(),
+  next_offset: z.number().int().nonnegative(),
+  retained_bytes: z.number().int().nonnegative(),
+  capture_truncated: z.boolean(),
+  preview_truncated: z.boolean(),
+  download_url: z.string(),
+});
+export function artifactPreviewQuery(id: string) {
+  return queryOptions({
+    queryKey: ["artifacts", id, "preview"],
+    queryFn: () => request(`/artifacts/${encodeURIComponent(id)}`, artifactPreview),
+    retry: false,
+  });
+}
+
 export function addRepository(repositoryURL: string) {
   return request("/projects", project.omit({ created_at: true }), {
     method: "POST",
