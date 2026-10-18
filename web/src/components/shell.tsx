@@ -208,11 +208,6 @@ export function Shell({ children }: { children: ReactNode }) {
                 {bootstrap.mode === "private" ? "PRIVATE" : "DEVELOPMENT"}
               </span>
             </header>
-            <div className="starter-notice">
-              <span className="notice-dot" />
-              Repository setup, issue sourcing, and the shared queue are available. Coding runs are
-              not connected yet.
-            </div>
             <main id="main-content">{children}</main>
             <footer className="run-bar">
               <div>

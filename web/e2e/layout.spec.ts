@@ -90,7 +90,9 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await page.getByRole("button", { name: /#7 Keep the queue readable/ }).click();
-    await page.getByRole("button", { name: "Review start options" }).click();
+    await expect(page.getByText("Start work", { exact: true }).first()).toBeVisible();
+    await expect(page.getByLabel("Model")).toBeDisabled();
+    await expect(page.getByLabel("Reasoning")).toBeDisabled();
     await page.locator(".queue-source-details summary").click();
     const overflow = await page.evaluate(() => {
       const selectors = [
@@ -100,7 +102,7 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
         ".main-column",
         "#main-content",
         ".page",
-        ".project-list article",
+        ".project-setup-alert",
         ".queue-grid",
         ".queue-list",
         ".queue-inspector",

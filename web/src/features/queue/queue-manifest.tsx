@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useIssueEditor } from "@/components/shell";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   type IssueSource,
   inspectQueueOperation,
@@ -41,6 +51,22 @@ function remember(key: string, value: string) {
   } catch {
     /* Optional browsing context. */
   }
+}
+
+function UnavailableSetting({ id, label }: { id: string; label: string }) {
+  return (
+    <div className="start-field">
+      <Label htmlFor={id}>{label}</Label>
+      <Select value="unavailable" disabled>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="unavailable">Provider not connected</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
 }
 
 function blocker(issue: IssueSource | undefined, issues: Map<number, IssueSource>): string | null {
@@ -96,11 +122,24 @@ export function QueueManifest({
   );
   const [pendingEdit, setPendingEdit] = useState<Edit | null>(null);
   const [message, setMessage] = useState("");
-  const [startOpen, setStartOpen] = useState(false);
-  const [scope, setScope] = useState<"follow" | "fixed">("follow");
-  const [taskLimit, setTaskLimit] = useState(20);
-  const [runtimeBudget, setRuntimeBudget] = useState("");
-  const [instructions, setInstructions] = useState("");
+  const [scope, setScope] = useState<"follow" | "fixed">(() =>
+    saved(`${contextKey}.scope`) === "fixed" ? "fixed" : "follow",
+  );
+  const [taskLimit, setTaskLimit] = useState(() => {
+    const value = Number(saved(`${contextKey}.taskLimit`));
+    return Number.isInteger(value) && value >= 1 && value <= 100 ? value : 20;
+  });
+  const [runtimeBudget, setRuntimeBudget] = useState(
+    () => saved(`${contextKey}.runtimeBudget`) ?? "",
+  );
+  const [instructions, setInstructions] = useState(() => saved(`${contextKey}.instructions`) ?? "");
+  useEffect(() => remember(`${contextKey}.scope`, scope), [contextKey, scope]);
+  useEffect(() => remember(`${contextKey}.taskLimit`, String(taskLimit)), [contextKey, taskLimit]);
+  useEffect(
+    () => remember(`${contextKey}.runtimeBudget`, runtimeBudget),
+    [contextKey, runtimeBudget],
+  );
+  useEffect(() => remember(`${contextKey}.instructions`, instructions), [contextKey, instructions]);
   const refresh = () => {
     void client.invalidateQueries({ queryKey: projectQueueQuery(projectID).queryKey });
     void client.invalidateQueries({ queryKey: queueOperationsQuery(projectID).queryKey });
@@ -190,20 +229,18 @@ export function QueueManifest({
             Inbox <span>{inbox.length}</span>
           </button>
         </div>
-        <Button size="sm" onClick={() => openEditor(projectID, projectName)}>
-          New task
-        </Button>
+        <div className="queue-sync">
+          <span>{queue.data?.state === "ready" ? "GitHub queue synced" : "Queue needs sync"}</span>
+          <Button size="sm" variant="ghost" disabled={sync.isPending} onClick={() => sync.mutate()}>
+            {sync.isPending ? "Syncing…" : "Sync queue"}
+          </Button>
+        </div>
       </div>
-      <div className="queue-sync">
-        <span>
-          {queue.data?.state === "ready"
-            ? `Queue synced ${queue.data.fetched_at}`
-            : queue.data?.last_error || "Queue has not synced"}
-        </span>
-        <Button size="sm" variant="ghost" disabled={sync.isPending} onClick={() => sync.mutate()}>
-          {sync.isPending ? "Syncing…" : "Sync queue"}
-        </Button>
-      </div>
+      {queue.data?.state !== "ready" && queue.data?.last_error && (
+        <p role="status" className="queue-feedback">
+          {queue.data.last_error}
+        </p>
+      )}
       {(queue.isError || sync.isError) && (
         <p role="alert" className="form-error">
           {queue.error?.message || sync.error?.message}
@@ -349,18 +386,27 @@ export function QueueManifest({
                     </>
                   )}
                   <h3>Effective policy</h3>
-                  <p>
-                    Checks:{" "}
-                    {selectedIssue.requirements?.settings.check_profile === "inherit" ||
-                    !selectedIssue.requirements
-                      ? "Project default (not resolved yet)"
-                      : selectedIssue.requirements.settings.check_profile}{" "}
-                    · Delivery:{" "}
-                    {selectedIssue.requirements?.settings.delivery === "inherit" ||
-                    !selectedIssue.requirements
-                      ? "Project default (not resolved yet)"
-                      : selectedIssue.requirements.settings.delivery}
-                  </p>
+                  <dl className="queue-policy">
+                    <div>
+                      <dt>Checks</dt>
+                      <dd>
+                        {selectedIssue.requirements?.settings.check_profile === "inherit" ||
+                        !selectedIssue.requirements
+                          ? "Project default"
+                          : selectedIssue.requirements.settings.check_profile}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Delivery</dt>
+                      <dd>
+                        {selectedIssue.requirements?.settings.delivery === "inherit" ||
+                        !selectedIssue.requirements
+                          ? "Project default"
+                          : selectedIssue.requirements.settings.delivery}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="queue-hint">Effective values are checked at admission.</p>
                   <p className="queue-hint">
                     Changes to an active issue apply to a future attempt. Use Work for live
                     direction.
@@ -383,7 +429,7 @@ export function QueueManifest({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="outline">
-                      More actions <Ellipsis size={16} />
+                      More actions
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
@@ -475,107 +521,117 @@ export function QueueManifest({
               </p>
             )}
           </div>
-          <Button variant="outline" onClick={() => setStartOpen(!startOpen)}>
-            {startOpen ? "Hide start options" : "Review start options"}
-          </Button>
         </div>
-        {startOpen && (
-          <div className="start-options">
-            <p>Repository: {projectName} · Branch: project default (checked at admission)</p>
-            <fieldset>
-              <legend>Scope</legend>
-              <label>
-                <input
-                  type="radio"
-                  checked={scope === "follow"}
-                  onChange={() => {
-                    setScope("follow");
-                    preview.reset();
-                  }}
-                />{" "}
-                Follow queue
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  checked={scope === "fixed"}
-                  onChange={() => {
-                    setScope("fixed");
-                    preview.reset();
-                  }}
-                />{" "}
-                Fixed scope
-              </label>
-            </fieldset>
-            <p>
+        <div className="start-options">
+          <p className="start-context">
+            <strong>{projectName}</strong> · Branch checked at admission
+          </p>
+          <div className="start-field start-field-wide">
+            <Label id="start-scope-label">Scope</Label>
+            <RadioGroup
+              value={scope}
+              aria-labelledby="start-scope-label"
+              onValueChange={(value) => {
+                setScope(value as "follow" | "fixed");
+                preview.reset();
+              }}
+              className="start-scope"
+            >
+              <div>
+                <RadioGroupItem value="follow" id="start-follow" />
+                <Label htmlFor="start-follow">Follow queue</Label>
+              </div>
+              <div>
+                <RadioGroupItem value="fixed" id="start-fixed" />
+                <Label htmlFor="start-fixed">Fixed scope</Label>
+              </div>
+            </RadioGroup>
+            <p className="start-help">
               {scope === "follow"
                 ? "Tasks deliberately added to this queue may run after the current task, within the remaining budget."
                 : `Only issue #${fixedIssue ?? "—"} would be in scope.`}
             </p>
-            <p>
-              Model, reasoning, permissions, and delivery are resolved from project settings at
-              admission. Their effective values are not available yet.
-            </p>
-            <Button
-              variant="outline"
-              disabled={preview.isPending || (scope === "fixed" && !fixedIssue)}
-              onClick={() =>
-                preview.mutate({ mode: scope, selected: scope === "fixed" ? (fixedIssue ?? 0) : 0 })
-              }
-            >
-              {preview.isPending ? "Checking…" : "Check current eligibility"}
-            </Button>
-            {previewCurrent && preview.data && (
-              <div role="status">
-                <p>
-                  {preview.data.selected
-                    ? `Fresh source selects #${preview.data.selected}.`
-                    : `Admission: ${preview.data.outcome || "no eligible task"}.`}
-                </p>
-                {preview.data.waiting.map((item) => (
-                  <p key={`${item.issue}-${item.code}`}>
-                    #{item.issue}: {item.reason}
-                  </p>
-                ))}
-              </div>
-            )}
-            {previewCurrent && preview.isError && (
-              <p role="alert">Eligibility check failed. Retry after checking repository access.</p>
-            )}
-            <label>
-              Task limit{" "}
-              <input
+          </div>
+          <div className="start-provider-grid">
+            <UnavailableSetting id="start-model" label="Model" />
+            <UnavailableSetting id="start-reasoning" label="Reasoning" />
+            <UnavailableSetting id="start-permissions" label="Permissions" />
+            <UnavailableSetting id="start-delivery" label="Delivery" />
+          </div>
+          <p className="start-help">
+            Outpost will show supported choices from the installed Codex provider when the adapter
+            is connected. No model or permission is assumed.
+          </p>
+          <div className="start-budget-grid">
+            <div className="start-field">
+              <Label htmlFor="start-task-limit">Task limit</Label>
+              <Input
+                id="start-task-limit"
                 type="number"
                 min={1}
                 max={100}
                 value={taskLimit}
                 onChange={(event) => setTaskLimit(Number(event.target.value))}
               />
-            </label>
-            <label>
-              Runtime budget (optional minutes){" "}
-              <input
+            </div>
+            <div className="start-field">
+              <Label htmlFor="start-runtime-budget">Runtime budget (minutes, optional)</Label>
+              <Input
+                id="start-runtime-budget"
                 type="number"
                 min={1}
                 value={runtimeBudget}
                 onChange={(event) => setRuntimeBudget(event.target.value)}
               />
-            </label>
-            <label>
-              Instructions{" "}
-              <textarea
-                value={instructions}
-                onChange={(event) => setInstructions(event.target.value)}
-                placeholder="Optional guidance for the run"
-              />
-            </label>
-            <p role="status">
-              Admission is available for inspection. Coding execution remains unavailable until the
-              provider adapter is connected.
-            </p>
-            <Button disabled>Start unavailable</Button>
+            </div>
           </div>
-        )}
+          <div className="start-field">
+            <Label htmlFor="start-instructions">Instructions</Label>
+            <Textarea
+              id="start-instructions"
+              value={instructions}
+              onChange={(event) => setInstructions(event.target.value)}
+              placeholder="Optional guidance for this run"
+              rows={3}
+            />
+          </div>
+          <div className="start-footer">
+            <div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={preview.isPending || (scope === "fixed" && !fixedIssue)}
+                onClick={() =>
+                  preview.mutate({
+                    mode: scope,
+                    selected: scope === "fixed" ? (fixedIssue ?? 0) : 0,
+                  })
+                }
+              >
+                {preview.isPending ? "Checking…" : "Check eligibility"}
+              </Button>
+              <p role="status">Start is unavailable until the Codex adapter is connected.</p>
+            </div>
+            <Button disabled>Start work</Button>
+          </div>
+          {previewCurrent && preview.data && (
+            <div className="start-preview" role="status">
+              <p>
+                {preview.data.selected
+                  ? `Fresh source selects #${preview.data.selected}.`
+                  : `Admission: ${preview.data.outcome || "no eligible task"}.`}
+              </p>
+              {preview.data.waiting.map((item) => (
+                <p key={`${item.issue}-${item.code}`}>
+                  #{item.issue}: {item.reason}
+                </p>
+              ))}
+            </div>
+          )}
+          {previewCurrent && preview.isError && (
+            <p role="alert">Eligibility check failed. Retry after checking repository access.</p>
+          )}
+        </div>
       </div>
       <details className="queue-source-details">
         <summary>Source details and recent changes</summary>

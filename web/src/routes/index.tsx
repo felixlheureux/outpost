@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ArrowUpRight, GitBranch, GitFork, ListOrdered, Play } from "lucide-react";
+import { GitBranch, GitFork, ListOrdered, Play } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { useSetup } from "@/components/shell";
+import { useIssueEditor, useSetup } from "@/components/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { QueueManifest } from "@/features/queue/queue-manifest";
@@ -25,6 +25,7 @@ function Queue() {
   const selectedProjectID = useRouterState({ select: (state) => state.location.search.project });
   const project = data.projects.find((item) => item.id === selectedProjectID) ?? data.projects[0];
   const openSetup = useSetup();
+  const openIssueEditor = useIssueEditor();
   const navigate = useNavigate();
   const [repositoryURL, setRepositoryURL] = useState("");
   const queryClient = useQueryClient();
@@ -72,44 +73,42 @@ function Queue() {
       <section className="page">
         <div className="page-title">
           <div>
-            <p className="eyebrow">{project.name}</p>
+            <p className="eyebrow" title={project.name}>
+              {project.name}
+            </p>
             <h1>Queue</h1>
-            <p>Repository setup: {project.setup_stage.replaceAll("_", " ")}</p>
+            <p>What runs next, and what is waiting.</p>
           </div>
-          <Button onClick={openSetup}>Add repository</Button>
+          <div className="page-title-actions">
+            <Button variant="outline" onClick={openSetup}>
+              Add repository
+            </Button>
+            <Button onClick={() => openIssueEditor(project.id, project.name)}>New task</Button>
+          </div>
         </div>
-        <div className="project-list">
-          <article>
-            <GitFork size={20} />
+        {project.setup_state !== "ready" && (
+          <div className="project-setup-alert" role="status">
             <div>
-              <h2>{project.name}</h2>
-              {project.setup_stage === "source_pending" ? (
-                <p>Checkout ready. Issue and queue setup is pending.</p>
-              ) : (
-                <p>Setup: {project.setup_stage.replaceAll("_", " ")}</p>
-              )}
-              {project.setup_error && <p role="status">{project.setup_error}</p>}
-              {project.setup_state === "failed" && (
-                <Button
-                  variant="outline"
-                  disabled={retry.isPending}
-                  onClick={() => retry.mutate(project.id)}
-                >
-                  {retry.isPending ? "Retrying setup…" : "Retry setup"}
-                </Button>
-              )}
-              {retry.isError && <p role="alert">{retry.error.message}</p>}
+              <strong>Repository setup: {project.setup_stage.replaceAll("_", " ")}</strong>
+              <p>
+                {project.setup_error ||
+                  (project.setup_stage === "source_pending"
+                    ? "Checkout ready. Issue and queue setup is pending."
+                    : "Outpost is preparing this repository.")}
+              </p>
             </div>
-            <a
-              href={project.repository_url}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`Open ${project.name} on GitHub`}
-            >
-              <ArrowUpRight size={18} />
-            </a>
-          </article>
-        </div>
+            {project.setup_state === "failed" && (
+              <Button
+                variant="outline"
+                disabled={retry.isPending}
+                onClick={() => retry.mutate(project.id)}
+              >
+                {retry.isPending ? "Retrying setup…" : "Retry setup"}
+              </Button>
+            )}
+            {retry.isError && <p role="alert">{retry.error.message}</p>}
+          </div>
+        )}
         <QueueManifest
           key={project.id}
           projectID={project.id}
