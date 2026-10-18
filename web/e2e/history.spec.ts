@@ -157,6 +157,9 @@ test("history keeps old attempts read only and exposes recovery evidence", async
         snapshot: {
           cursor: 1,
           oldest_cursor: 1,
+          run_id: "old-run",
+          project_id: "p",
+          run_state: "stopped",
           mode: "",
           instructions: "",
           digest: "",
@@ -230,6 +233,11 @@ test("history keeps old attempts read only and exposes recovery evidence", async
     return second.top - first.bottom;
   });
   expect(cardGap).toBeGreaterThanOrEqual(12);
+  const activityDetails = page.locator(".history-activity");
+  expect(await activityDetails.evaluate((element) => element.hasAttribute("open"))).toBe(false);
+  await activityDetails.locator("summary").click();
+  await expect(page.getByText(/Provider interrupted/)).toBeVisible();
+  await activityDetails.locator("summary").click();
   await expect(page.getByRole("button", { name: "Interrupt now" })).toHaveCount(0);
   await page.getByRole("button", { name: "Connection and storage" }).click();
   await expect(page.getByText(/Tailscale: node matches configuration/)).toBeVisible();

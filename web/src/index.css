@@ -940,6 +940,17 @@ nav {
   border-radius: 6px;
   background: var(--background);
 }
+.history-detail > .history-activity {
+  display: block;
+}
+.history-activity > summary {
+  min-height: 44px;
+  padding: 10px 0;
+}
+.history-activity > div {
+  display: grid;
+  gap: 8px;
+}
 .work-control-receipts {
   display: flex;
   flex-wrap: wrap;

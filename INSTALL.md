@@ -1,6 +1,6 @@
 # Install and onboard Outpost
 
-**Status:** The `v0.1.0-rc4` prerelease has Linux amd64/arm64 binaries and checksums. Its bootstrap installed the verified amd64 asset on the configured host and confirmed the private dashboard. A separate clean-host install remains unverified; the configured host is the deployment target for this release.
+**Status:** The `v0.1.0-rc5` prerelease has Linux amd64/arm64 binaries and checksums. Its bootstrap installed the verified amd64 asset on the configured host and confirmed the private dashboard. A separate clean-host install remains unverified; the configured host is the deployment target for this release.
 
 ## Choose release installation or source build
 
@@ -17,11 +17,11 @@ The automated package path targets Debian/Ubuntu-family Linux with systemd. The 
 
 ### 1. Obtain the executable
 
-Download `scripts/install.sh` from the matching release tag and run it as the service user. It selects `outpost-linux-amd64` or `outpost-linux-arm64`, verifies the matching `.sha256` asset, then invokes the canonical installer. Use `--release v0.1.0-rc4` for the published prerelease; the default uses GitHub's latest stable release, which is not published yet. The bootstrap also accepts an explicitly supplied locally built binary.
+Download `scripts/install.sh` from the matching release tag and run it as the service user. It selects `outpost-linux-amd64` or `outpost-linux-arm64`, verifies the matching `.sha256` asset, then invokes the canonical installer. Use `--release v0.1.0-rc5` for the published prerelease; the default uses GitHub's latest stable release, which is not published yet. The bootstrap also accepts an explicitly supplied locally built binary.
 
 ```sh
-curl -fsSLo /tmp/outpost-install.sh https://raw.githubusercontent.com/felixlheureux/outpost/v0.1.0-rc4/scripts/install.sh
-sh /tmp/outpost-install.sh --release v0.1.0-rc4
+curl -fsSLo /tmp/outpost-install.sh https://raw.githubusercontent.com/felixlheureux/outpost/v0.1.0-rc5/scripts/install.sh
+sh /tmp/outpost-install.sh --release v0.1.0-rc5
 ```
 
 The canonical configuration entry point is:

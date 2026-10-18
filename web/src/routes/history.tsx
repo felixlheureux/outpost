@@ -274,26 +274,39 @@ function HistoryPage() {
                   {reportStatus ? <span role="status">{reportStatus}</span> : null}
                 </div>
               ) : null}
-              <section className="work-brief">
-                <h3>Recent activity</h3>
-                {activity.data?.events.map((event) => (
-                  <p key={event.cursor}>
-                    {new Date(event.created_at).toLocaleString()} · {event.kind} ·{" "}
-                    {typeof event.payload.summary === "string" ? event.payload.summary : ""}
-                    {event.artifact_id ? (
-                      <a
-                        href={`/api/v1/artifacts/${encodeURIComponent(event.artifact_id)}?download=1`}
-                      >
-                        {" "}
-                        Retained output
-                      </a>
-                    ) : null}
-                  </p>
-                ))}
-                {activity.data?.next_before ? (
-                  <p>Earlier activity is available in the run record.</p>
-                ) : null}
-              </section>
+              <details className="work-brief history-activity">
+                <summary>
+                  Recent activity ·{" "}
+                  {activity.isError
+                    ? "unavailable"
+                    : activity.isLoading
+                      ? "loading"
+                      : `${activity.data?.events.length ?? 0} events`}
+                </summary>
+                <div>
+                  {activity.isError ? (
+                    <p role="alert">Recent activity is unavailable: {activity.error.message}</p>
+                  ) : null}
+                  {activity.isLoading ? <p>Loading retained activity…</p> : null}
+                  {activity.data?.events.map((event) => (
+                    <p key={event.cursor}>
+                      {new Date(event.created_at).toLocaleString()} · {event.kind} ·{" "}
+                      {typeof event.payload.summary === "string" ? event.payload.summary : ""}
+                      {event.artifact_id ? (
+                        <a
+                          href={`/api/v1/artifacts/${encodeURIComponent(event.artifact_id)}?download=1`}
+                        >
+                          {" "}
+                          Retained output
+                        </a>
+                      ) : null}
+                    </p>
+                  ))}
+                  {activity.data?.next_before ? (
+                    <p>Earlier activity is available in the run record.</p>
+                  ) : null}
+                </div>
+              </details>
               <section className="work-brief">
                 <h3>Retained output</h3>
                 <p>
