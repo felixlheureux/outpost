@@ -137,10 +137,12 @@ test("Inbox selection, reorder conflict, and partial create stay reviewable", as
   await page.getByRole("tab", { name: "Inbox 1" }).click();
   await page.getByRole("button", { name: /#6 Inbox task/ }).click();
   await expect(page.getByRole("heading", { name: "#6 Inbox task" })).toBeVisible();
-  await page.getByRole("button", { name: "Add to end of queue" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Add to end of queue" }).click();
   await expect(page.getByRole("tab", { name: "Queued 2" })).toBeVisible();
   await page.getByRole("tab", { name: "Queued 2" }).click();
-  await page.getByRole("button", { name: "Move earlier" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Move earlier" }).click();
   await expect(page.getByText(/conflict: Manifest changed/)).toBeVisible();
   await page.getByRole("button", { name: "Apply to latest order" }).click();
   await expect(page.getByRole("button", { name: /#6 Inbox task/ })).toBeVisible();

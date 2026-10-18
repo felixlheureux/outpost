@@ -118,6 +118,18 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     if (width === 1440 || width === 390)
       await page.screenshot({ path: `/tmp/outpost-layout-${width}.png`, fullPage: true });
     expect(overflow, `horizontal overflow at ${width}px`).toEqual([]);
+    await page.getByRole("button", { name: "More actions" }).click();
+    await expect(page.getByRole("menuitem", { name: "Open on GitHub" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Move earlier" })).toBeDisabled();
+    const menuOverflow = await page
+      .locator('[data-slot="dropdown-menu-content"]')
+      .evaluate((element) => ({
+        left: element.getBoundingClientRect().left,
+        right: element.getBoundingClientRect().right - window.innerWidth,
+      }));
+    expect(menuOverflow.left, `menu left edge at ${width}px`).toBeGreaterThanOrEqual(-1);
+    expect(menuOverflow.right, `menu right edge at ${width}px`).toBeLessThanOrEqual(1);
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Edit task" }).click();
     const dialogOverflow = await page.locator(".issue-editor-dialog").evaluate((element) => ({
       content: element.scrollWidth - element.clientWidth,

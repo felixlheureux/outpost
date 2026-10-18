@@ -1,8 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useIssueEditor } from "@/components/shell";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   type IssueSource,
   inspectQueueOperation,
@@ -364,75 +372,82 @@ export function QueueManifest({
                 </p>
               )}
               <div className="queue-inspector-actions">
-                <a href={issueURL(selected)} target="_blank" rel="noreferrer">
-                  Open on GitHub
-                </a>
                 {selectedIssue && (
                   <Button
                     size="sm"
-                    variant="outline"
                     onClick={() => openEditor(projectID, projectName, selectedIssue)}
                   >
                     Edit task
                   </Button>
                 )}
-                {selectedIssue?.state === "open" && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => openEditor(projectID, projectName, selectedIssue, true)}
-                  >
-                    {selectedIssue.requirements?.settings.hold_reason ? "Edit hold" : "Hold…"}
-                  </Button>
-                )}
-                {selectedPosition >= 0 ? (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={
-                        editingBlocked || selectedPosition === 0 || queue.data?.state !== "ready"
-                      }
-                      onClick={() => submit("move", selected, order[selectedPosition - 1])}
-                    >
-                      Move earlier
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      More actions <Ellipsis size={16} />
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={
-                        editingBlocked ||
-                        selectedPosition === order.length - 1 ||
-                        queue.data?.state !== "ready"
-                      }
-                      onClick={() => submit("move", selected, order[selectedPosition + 2])}
-                    >
-                      Move later
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={editingBlocked || queue.data?.state !== "ready"}
-                      onClick={() => submit("remove", selected)}
-                    >
-                      Remove from queue
-                    </Button>
-                  </>
-                ) : (
-                  selectedIssue?.state === "open" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={editingBlocked || queue.data?.state !== "ready"}
-                      onClick={() => submit("append", selected)}
-                    >
-                      Add to end of queue
-                    </Button>
-                  )
-                )}
-                <Link to="/history" search={{ project: projectID }}>
-                  History
-                </Link>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem asChild>
+                      <a href={issueURL(selected)} target="_blank" rel="noreferrer">
+                        Open on GitHub
+                      </a>
+                    </DropdownMenuItem>
+                    {selectedIssue?.state === "open" && (
+                      <DropdownMenuItem
+                        onSelect={() => openEditor(projectID, projectName, selectedIssue, true)}
+                      >
+                        {selectedIssue.requirements?.settings.hold_reason ? "Edit hold" : "Hold…"}
+                      </DropdownMenuItem>
+                    )}
+                    {selectedPosition >= 0 ? (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          disabled={
+                            editingBlocked ||
+                            selectedPosition === 0 ||
+                            queue.data?.state !== "ready"
+                          }
+                          onSelect={() => submit("move", selected, order[selectedPosition - 1])}
+                        >
+                          Move earlier
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={
+                            editingBlocked ||
+                            selectedPosition === order.length - 1 ||
+                            queue.data?.state !== "ready"
+                          }
+                          onSelect={() => submit("move", selected, order[selectedPosition + 2])}
+                        >
+                          Move later
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={editingBlocked || queue.data?.state !== "ready"}
+                          onSelect={() => submit("remove", selected)}
+                          variant="destructive"
+                        >
+                          Remove from queue
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      selectedIssue?.state === "open" && (
+                        <DropdownMenuItem
+                          disabled={editingBlocked || queue.data?.state !== "ready"}
+                          onSelect={() => submit("append", selected)}
+                        >
+                          Add to end of queue
+                        </DropdownMenuItem>
+                      )
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/history" search={{ project: projectID }}>
+                        History
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </>
           )}

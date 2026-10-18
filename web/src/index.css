@@ -674,9 +674,6 @@ nav {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-#main-content .queue-inspector-actions a {
-  text-decoration: underline;
-}
 .queue-feedback {
   padding: 8px 12px;
   background: var(--accent);
