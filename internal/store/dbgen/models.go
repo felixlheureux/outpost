@@ -8,6 +8,37 @@ import (
 	"database/sql"
 )
 
+type ActivityArtifact struct {
+	ID             string
+	RunID          string
+	AttemptID      string
+	AssignmentID   string
+	Kind           string
+	RelativePath   string
+	BytesWritten   int64
+	Truncated      int64
+	RetentionState string
+	RemovedAt      string
+	CreatedAt      string
+	UpdatedAt      string
+}
+
+type ActivityCursorFloor struct {
+	RunID         string
+	PrunedThrough int64
+}
+
+type ActivityEvent struct {
+	Cursor      int64
+	ProjectID   sql.NullString
+	RunID       sql.NullString
+	AttemptID   sql.NullString
+	Kind        string
+	PayloadJson string
+	ArtifactID  string
+	CreatedAt   string
+}
+
 type Assignment struct {
 	ID              string
 	RunID           string
@@ -99,6 +130,25 @@ type Project struct {
 	Managed       int64
 }
 
+type ProviderAttempt struct {
+	AttemptID      string
+	AssignmentID   string
+	State          string
+	Version        string
+	Model          string
+	Reasoning      string
+	Sandbox        string
+	ApprovalPolicy string
+	Prompt         string
+	ThreadID       string
+	TurnID         string
+	HandoffJson    string
+	FailureCode    string
+	TurnOpen       int64
+	CreatedAt      string
+	UpdatedAt      string
+}
+
 type QueueOperation struct {
 	ID           string
 	ProjectID    string
@@ -154,4 +204,35 @@ type RunSchedule struct {
 	Outcome         string
 	Reason          string
 	CreatedAt       string
+}
+
+type WorkControl struct {
+	ID           string
+	RunID        string
+	AttemptID    string
+	Action       string
+	Mode         string
+	Instructions string
+	Digest       string
+	State        string
+	Reason       string
+	CreatedAt    string
+	UpdatedAt    string
+}
+
+type WorkMessage struct {
+	ID              string
+	RunID           string
+	AssignmentID    string
+	AttemptID       string
+	ThreadID        string
+	ExpectedTurnID  string
+	Target          string
+	Body            string
+	Digest          string
+	State           string
+	Reason          string
+	ContractChanged int64
+	CreatedAt       string
+	UpdatedAt       string
 }

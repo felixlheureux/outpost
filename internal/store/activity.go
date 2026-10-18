@@ -57,7 +57,7 @@ func (s *Store) ReadActivitySnapshot(ctx context.Context, runID string) (Activit
 		return v, err
 	}
 	var phase, provider, version, model, reasoning, sandbox, approval sql.NullString
-	err = tx.QueryRowContext(ctx, `SELECT a.id,t.phase,p.state,p.version,p.model,p.reasoning,p.sandbox,p.approval_policy FROM assignments a LEFT JOIN assignment_attempts t ON t.assignment_id=a.id AND t.outcome='running' LEFT JOIN provider_attempts p ON p.assignment_id=a.id WHERE a.run_id=? ORDER BY a.created_at DESC LIMIT 1`, runID).Scan(&v.AssignmentID, &phase, &provider, &version, &model, &reasoning, &sandbox, &approval)
+	err = tx.QueryRowContext(ctx, `SELECT a.id,t.phase,p.state,p.version,p.model,p.reasoning,p.sandbox,p.approval_policy FROM assignments a LEFT JOIN assignment_attempts t ON t.assignment_id=a.id AND t.outcome='running' LEFT JOIN provider_attempts p ON p.attempt_id=t.id WHERE a.run_id=? ORDER BY a.created_at DESC LIMIT 1`, runID).Scan(&v.AssignmentID, &phase, &provider, &version, &model, &reasoning, &sandbox, &approval)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return v, err
 	}
@@ -159,13 +159,13 @@ func (s *Store) BeginProviderArtifact(ctx context.Context, assignmentID string) 
 		return a, err
 	}
 	defer tx.Rollback()
-	if err := tx.QueryRowContext(ctx, `SELECT a.run_id,p.attempt_id FROM assignments a JOIN provider_attempts p ON p.assignment_id=a.id WHERE a.id=? AND p.state='pending'`, assignmentID).Scan(&a.RunID, &a.AttemptID); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT a.run_id,p.attempt_id FROM assignments a JOIN provider_attempts p ON p.assignment_id=a.id WHERE a.id=? AND p.state='pending' ORDER BY p.created_at DESC LIMIT 1`, assignmentID).Scan(&a.RunID, &a.AttemptID); err != nil {
 		return a, err
 	}
 	if !safeID.MatchString(a.RunID) || !safeID.MatchString(a.AttemptID) {
 		return a, fmt.Errorf("invalid run or attempt artifact identity")
 	}
-	a.ID = "artifact_" + assignmentID
+	a.ID = "artifact_" + a.AttemptID
 	a.AssignmentID = assignmentID
 	a.Kind = "provider-events"
 	a.RelativePath = "artifacts/" + a.RunID + "/" + a.AttemptID + "/provider-events.jsonl"
@@ -239,7 +239,7 @@ func (s *Store) AppendProviderActivity(ctx context.Context, assignmentID, catego
 		return err
 	}
 	result, err := s.DB.ExecContext(ctx, `INSERT INTO activity_events(project_id,run_id,attempt_id,kind,payload_json,artifact_id,created_at)
-	 SELECT a.project_id,a.run_id,p.attempt_id,'activity.appended',?,?,? FROM assignments a JOIN provider_attempts p ON p.assignment_id=a.id WHERE a.id=? AND p.state IN ('thread_started','turn_started')`, string(payload), artifactID, time.Now().UTC().Format(time.RFC3339Nano), assignmentID)
+	 SELECT a.project_id,a.run_id,p.attempt_id,'activity.appended',?,?,? FROM assignments a JOIN provider_attempts p ON p.assignment_id=a.id WHERE a.id=? AND p.state IN ('thread_started','turn_started') ORDER BY p.created_at DESC LIMIT 1`, string(payload), artifactID, time.Now().UTC().Format(time.RFC3339Nano), assignmentID)
 	if err != nil {
 		return err
 	}

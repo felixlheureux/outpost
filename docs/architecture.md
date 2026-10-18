@@ -7,7 +7,7 @@ private web service, worker ownership fixtures, managed GitHub cloning and an
 issue source projection with durable create/edit receipts, and a GitHub planning
 queue projection with durable edit receipts, the Queue/Inbox workspace, a
 durable scheduler with fresh-source admission and an eligibility preview, and
-a Codex App Server adapter with provider attempt receipts. The browser Start
+a Codex App Server adapter with provider attempt and live control receipts. The browser Start
 control remains disabled until runner validation and delivery are connected.
 The complete behavior contract remains the technical specification.
 
@@ -36,6 +36,7 @@ or service layers for every table in advance.
 | `internal/codexadapter` | Pinned Codex App Server stdio protocol, capability discovery, session controls and structured handoff |
 | `internal/providerwork` | Immutable prompt, private bounded event artifact and owned provider receipt transitions |
 | `activity_events`, `activity_artifacts` | Bounded notifications and allowlisted private output manifest; see `docs/activity.md` |
+| `work_messages`, `work_controls` | Scoped live directions, stop and continuation receipts; see `docs/work.md` |
 | `internal/supervisor`, `internal/worker` | Recorded worker units, process identity and workspace exclusion |
 | `web/assets*.go` | Production embedding; explicit development build variant |
 | `web/src/routes` | TanStack Router file routes and route-level composition |
@@ -52,7 +53,7 @@ reservation state stays held until worker/process settlement. `run_schedules`,
 `execution_generations`, `assignments`, and `assignment_attempts` own captured
 policy, completion identity, immutable source/baseline snapshots, and attempt
 phase receipts. No task rank field is authoritative.
-`provider_attempts` records one provider intent per assignment, selected
+`provider_attempts` records one provider intent per linked attempt, selected
 settings, exact thread/turn IDs and a proposed handoff. A completed provider
 turn advances the attempt to validation without settling the assignment.
 `activity_events` provides replay cursors and small event payloads; business
@@ -109,7 +110,7 @@ the navigation into a top strip. Honor reduced motion and visible focus.
 
 ## Next integration points
 
-OP-010 owns live instruction receipts, stop/interrupt and continuation controls.
+OP-010 supplies live instruction receipts, stop/interrupt and continuation controls.
 OP-011 owns runner-verified checks and OP-012 owns Git delivery. The browser
 Start control remains disabled until these completion boundaries are connected.
 The Work activity stream reads real SQLite cursors and provider artifacts;

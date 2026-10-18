@@ -117,6 +117,36 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
       },
     }),
   );
+  await page.route("**/api/v1/runs/run-1/work", (route) =>
+    route.fulfill({
+      json: {
+        run_id: "run-1",
+        project_id: "project_1",
+        run_state: "running",
+        assignment_id: "assignment",
+        attempt_id: "attempt",
+        attempt_phase: "implementing",
+        attempt_outcome: "running",
+        provider_state: "turn_started",
+        thread_id: "thread",
+        turn_id: "turn",
+        turn_open: true,
+        issue_number: 7,
+        snapshot: { issue_number: 7, title, body: longWord },
+        model: "fixture-a",
+        reasoning: "medium",
+        sandbox: "workspace-write",
+        approval_policy: "on-request",
+        successful_count: 0,
+        task_limit: 1,
+        stop_requested: false,
+        schedule_outcome: "active",
+        schedule_reason: "",
+        messages: [],
+        controls: [],
+      },
+    }),
+  );
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
@@ -194,7 +224,7 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
   }
   currentRun = { id: "run-1", project_id: "project_1", state: "running", liveness: "active" };
   await page.goto("/work?project=project_1");
-  await expect(page.getByText("Current run")).toBeVisible();
+  await expect(page.getByRole("heading", { name: `#7 ${title}` })).toBeVisible();
   await expect(page.getByLabel("Model")).toHaveCount(0);
   const activeOverflow = await page.evaluate(() =>
     ["html", ".page", ".activity-work"].filter((selector) => {
@@ -203,4 +233,7 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     }),
   );
   expect(activeOverflow).toEqual([]);
+  await page.screenshot({ path: "/tmp/outpost-active-work-320.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.screenshot({ path: "/tmp/outpost-active-work-1440.png", fullPage: true });
 });

@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -35,16 +37,19 @@ func addWorker(root *cobra.Command, stateDir *string) {
 		}
 		defer lock.Close()
 		if !fixtureHold {
+			var codexPath string
+			var run store.Run
+			var schedule store.Schedule
 			err := func() error {
-				codexPath, err := codexadapter.FindExecutable()
+				codexPath, err = codexadapter.FindExecutable()
 				if err != nil {
 					return fmt.Errorf("Codex is not installed for the worker user: %w", err)
 				}
-				run, err := db.GetRun(cmd.Context(), runID)
+				run, err = db.GetRun(cmd.Context(), runID)
 				if err != nil {
 					return err
 				}
-				schedule, err := db.GetSchedule(cmd.Context(), runID)
+				schedule, err = db.GetSchedule(cmd.Context(), runID)
 				if err != nil {
 					return err
 				}
@@ -63,7 +68,46 @@ func addWorker(root *cobra.Command, stateDir *string) {
 				// Keep the worker and lock alive for explicit stop/recovery.
 				fmt.Fprintln(cmd.ErrOrStderr(), err)
 			}
+			// A failed or interrupted provider attempt remains owned. Continue
+			// requests are consumed only by this worker after Execute has closed
+			// the old App Server process and released its turn.
+			poll := time.NewTicker(300 * time.Millisecond)
+			defer poll.Stop()
+			for {
+				select {
+				case <-cmd.Context().Done():
+					goto stopped
+				case <-poll.C:
+				}
+				control, claimErr := db.ClaimWorkControl(cmd.Context(), runID, "continue")
+				if errors.Is(claimErr, sql.ErrNoRows) {
+					continue
+				}
+				if claimErr != nil {
+					fmt.Fprintln(cmd.ErrOrStderr(), claimErr)
+					continue
+				}
+				_, threadID, beginErr := db.BeginContinuation(cmd.Context(), control)
+				if beginErr != nil {
+					_ = db.SettleWorkControl(cmd.Context(), control.ID, "rejected", beginErr.Error())
+					continue
+				}
+				assignment, assignmentErr := db.CurrentAssignment(cmd.Context(), runID)
+				if assignmentErr != nil {
+					fmt.Fprintln(cmd.ErrOrStderr(), assignmentErr)
+					continue
+				}
+				resume := ""
+				if control.Mode == "resume" {
+					resume = threadID
+				}
+				_, executeErr := providerwork.ExecuteContinuation(cmd.Context(), db, *stateDir, codexPath, assignment, schedule, run.WorkspacePath, resume, control.Instructions)
+				if executeErr != nil {
+					fmt.Fprintln(cmd.ErrOrStderr(), executeErr)
+				}
+			}
 		}
+	stopped:
 		<-cmd.Context().Done()
 		settleCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

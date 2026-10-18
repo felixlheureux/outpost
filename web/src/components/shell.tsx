@@ -39,7 +39,7 @@ export function useIssueEditor() {
 }
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery);
+  const { data: bootstrap } = useSuspenseQuery({ ...bootstrapQuery, refetchInterval: 5000 });
   const { data: projectData } = useSuspenseQuery({
     ...projectsQuery,
     refetchInterval: (query) =>
@@ -219,7 +219,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 </strong>
                 <span>
                   {bootstrap.current_run
-                    ? `${bootstrap.current_run.state} · worker ${bootstrap.current_run.liveness}`
+                    ? `${bootstrap.current_run.state} · worker ${bootstrap.current_run.liveness}${bootstrap.current_run.stop_requested ? " · stop after task" : ""}`
                     : "The execution slot is free."}
                 </span>
               </div>

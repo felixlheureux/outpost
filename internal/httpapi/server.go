@@ -129,7 +129,11 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 					}
 				}
 			}
-			currentRun = map[string]string{"id": run.ID, "project_id": run.ProjectID, "state": run.State, "liveness": liveness}
+			stopRequested := false
+			if schedule, scheduleErr := db.GetSchedule(c.Request().Context(), run.ID); scheduleErr == nil {
+				stopRequested = schedule.StopRequested
+			}
+			currentRun = map[string]any{"id": run.ID, "project_id": run.ProjectID, "state": run.State, "liveness": liveness, "stop_requested": stopRequested}
 		}
 		return c.JSON(200, map[string]any{
 			"version": version, "mode": mode, "current_run": currentRun,
@@ -164,6 +168,7 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 		return c.JSON(200, capabilities)
 	})
 	registerActivityRoutes(e, db, stateDir, activitySlots)
+	registerWorkRoutes(e, db)
 	e.GET("/api/v1/projects", func(c *echo.Context) error {
 		rows, err := db.Queries.ListProjects(c.Request().Context())
 		if err != nil {

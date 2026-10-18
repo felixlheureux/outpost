@@ -2,6 +2,12 @@ import { expect, test } from "@playwright/test";
 
 test("activity reconnect preserves the instructions draft and opened reader", async ({ page }) => {
   const at = "2026-10-18T12:00:00Z";
+  let providerState = "turn_started";
+  let attemptID = "attempt";
+  let stopRequested = false;
+  let messageSubmissions = 0;
+  let messages: Record<string, unknown>[] = [];
+  let controls: Record<string, unknown>[] = [];
   await page.route("**/api/v1/bootstrap", (route) =>
     route.fulfill({
       json: {
@@ -66,6 +72,95 @@ test("activity reconnect preserves the instructions draft and opened reader", as
       },
     }),
   );
+  await page.route("**/api/v1/runs/run_1/work", (route) =>
+    route.fulfill({
+      json: {
+        run_id: "run_1",
+        project_id: "p",
+        run_state: "running",
+        assignment_id: "a",
+        attempt_id: attemptID,
+        attempt_phase: "implementing",
+        attempt_outcome: "running",
+        provider_state: providerState,
+        thread_id: "thread",
+        turn_id: "turn",
+        turn_open: providerState === "turn_started",
+        issue_number: 9,
+        snapshot: {
+          issue_number: 9,
+          title: "Build Work controls",
+          body: "Pinned task brief",
+          issue_url: "https://github.com/owner/repo/issues/9",
+        },
+        model: "fixture",
+        reasoning: "low",
+        sandbox: "workspace-write",
+        approval_policy: "on-request",
+        successful_count: 0,
+        task_limit: 2,
+        stop_requested: stopRequested,
+        schedule_outcome: "active",
+        schedule_reason: "",
+        messages,
+        controls,
+      },
+    }),
+  );
+  await page.route("**/api/v1/runs/run_1/messages", async (route) => {
+    messageSubmissions += 1;
+    if (messageSubmissions === 1) {
+      await route.fulfill({
+        status: 409,
+        json: {
+          error: {
+            code: "stale_target",
+            message: "The targeted turn changed. Your draft is preserved.",
+            request_id: "test",
+          },
+        },
+      });
+      return;
+    }
+    const input = route.request().postDataJSON();
+    const receipt = {
+      ...input,
+      run_id: "run_1",
+      assignment_id: "a",
+      digest: "digest",
+      state: "accepted",
+      reason: "provider acknowledged direction",
+      contract_changed: true,
+      created_at: at,
+      updated_at: at,
+    };
+    messages = [receipt];
+    await route.fulfill({ json: receipt });
+  });
+  await page.route("**/api/v1/runs/run_1/controls", async (route) => {
+    const input = route.request().postDataJSON();
+    if (input.action === "interrupt") {
+      providerState = "interrupted";
+      stopRequested = true;
+    }
+    if (input.action === "continue") {
+      providerState = "thread_started";
+      attemptID = "attempt_2";
+    }
+    const receipt = {
+      ...input,
+      run_id: "run_1",
+      mode: input.mode ?? "",
+      instructions: input.instructions ?? "",
+      digest: "digest",
+      state: "accepted",
+      reason: "worker acknowledged",
+      created_at: at,
+      updated_at: at,
+    };
+    controls = [receipt, ...controls];
+    await route.fulfill({ json: receipt });
+  });
   await page.route("**/api/v1/runs/run_1/activity?before=2", (route) =>
     route.fulfill({
       json: {
@@ -105,7 +200,7 @@ test("activity reconnect preserves the instructions draft and opened reader", as
     });
   });
   await page.goto("/work?project=p");
-  const draft = page.getByLabel("Instructions draft");
+  const draft = page.getByLabel("Instructions for current turn");
   await draft.fill("Keep the unfinished note while I read.");
   await page.getByRole("button", { name: "Load older activity" }).click();
   await expect(page.getByText("Older message")).toBeVisible();
@@ -118,7 +213,23 @@ test("activity reconnect preserves the instructions draft and opened reader", as
   await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "Queue" }).click();
   await page.getByRole("link", { name: "Work", exact: true }).click();
-  await expect(page.getByLabel("Instructions draft")).toHaveValue(
+  await expect(page.getByLabel("Instructions for current turn")).toHaveValue(
     "Keep the unfinished note while I read.",
   );
+  await page.getByRole("button", { name: "Send instructions" }).click();
+  await expect(page.getByRole("alert")).toContainText("targeted turn changed");
+  await expect(page.getByLabel("Instructions for current turn")).toHaveValue(
+    "Keep the unfinished note while I read.",
+  );
+  await page.getByRole("button", { name: "Send instructions" }).click();
+  await expect(page.getByLabel("Instructions for current turn")).toHaveValue("");
+  await expect(page.getByRole("region", { name: "Instruction receipts" })).toContainText(
+    "accepted",
+  );
+  await page.getByRole("button", { name: "Interrupt now" }).click();
+  await expect(page.getByText(/Interruption requested/)).toBeVisible();
+  await page.getByRole("button", { name: "Fresh conversation" }).click();
+  await page.getByLabel("Continue with instructions").fill("Use the saved diff");
+  await page.getByRole("button", { name: "Continue with instructions" }).click();
+  await expect(page.getByText(/Targets the next turn/)).toBeVisible();
 });

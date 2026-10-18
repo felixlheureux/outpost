@@ -722,11 +722,37 @@ nav {
 .activity-work {
   min-width: 0;
   display: grid;
-  gap: 14px;
+  gap: 12px;
+}
+.work-layout,
+.work-primary {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+@media (min-width: 1100px) {
+  .work-layout {
+    grid-template-columns: minmax(0, 1fr) 250px;
+    align-items: start;
+  }
+  .work-primary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .work-brief {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 16px;
+  }
 }
 .activity-head,
 .activity-feed,
-.activity-draft {
+.activity-draft,
+.work-brief,
+.work-changes,
+.work-empty-panel {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -806,6 +832,123 @@ nav {
   padding: 16px;
   display: grid;
   gap: 8px;
+}
+.work-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.work-note {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.work-brief {
+  padding: 11px 15px;
+  font-size: 13px;
+}
+.work-brief summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.work-brief div {
+  margin-top: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 34dvh;
+  overflow: auto;
+}
+.work-brief a {
+  display: inline-block;
+  margin-top: 12px;
+  text-decoration: underline;
+}
+.work-attempts {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 12px;
+}
+#main-content .work-attempts p {
+  margin-top: 5px;
+  color: var(--muted-foreground);
+}
+.work-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.work-receipts {
+  display: grid;
+  gap: 6px;
+  max-height: 190px;
+  overflow: auto;
+}
+.work-receipts > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.work-receipts span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.work-receipts small {
+  grid-column: 2;
+  color: var(--muted-foreground);
+}
+.work-control-receipts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.work-changes,
+.work-empty-panel {
+  padding: 16px;
+}
+.work-recovery {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 12px 16px;
+  font-size: 13px;
+}
+#main-content .work-recovery p {
+  color: var(--muted-foreground);
+  margin-top: 4px;
+}
+.work-paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0;
+}
+.work-paths button {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.work-diff {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.work-diff pre {
+  max-height: 50dvh;
+  overflow: auto;
+  white-space: pre;
+  font-size: 12px;
 }
 #main-content .activity-draft p {
   color: var(--muted-foreground);

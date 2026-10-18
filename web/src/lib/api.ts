@@ -10,6 +10,7 @@ const bootstrap = z.object({
       project_id: z.string(),
       state: z.string(),
       liveness: z.enum(["active", "stopped", "unknown"]),
+      stop_requested: z.boolean().optional(),
     })
     .nullable(),
   capabilities: z.object({ repository_setup: z.boolean(), execution: z.boolean() }),
@@ -161,6 +162,152 @@ export function artifactPreviewQuery(id: string) {
   return queryOptions({
     queryKey: ["artifacts", id, "preview"],
     queryFn: () => request(`/artifacts/${encodeURIComponent(id)}`, artifactPreview),
+    retry: false,
+  });
+}
+
+const workMessage = z.object({
+  id: z.string(),
+  run_id: z.string(),
+  assignment_id: z.string(),
+  attempt_id: z.string(),
+  thread_id: z.string(),
+  expected_turn_id: z.string(),
+  target: z.enum(["live", "next"]),
+  body: z.string(),
+  digest: z.string(),
+  state: z.enum(["queued", "sending", "accepted", "rejected", "unknown"]),
+  reason: z.string(),
+  contract_changed: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const workControl = z.object({
+  id: z.string(),
+  run_id: z.string(),
+  attempt_id: z.string(),
+  action: z.enum(["finish", "undo", "interrupt", "continue"]),
+  mode: z.string(),
+  instructions: z.string(),
+  digest: z.string(),
+  state: z.enum(["queued", "sending", "accepted", "rejected", "unknown"]),
+  reason: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const workOverview = z.object({
+  run_id: z.string(),
+  project_id: z.string(),
+  run_state: z.string(),
+  assignment_id: z.string(),
+  assignment_started_at: z.string().optional(),
+  attempt_id: z.string(),
+  attempt_phase: z.string(),
+  attempt_outcome: z.string(),
+  provider_state: z.string(),
+  provider_failure_code: z.string().optional(),
+  thread_id: z.string(),
+  turn_id: z.string(),
+  turn_open: z.boolean(),
+  issue_number: z.number(),
+  snapshot: z
+    .object({
+      issue_number: z.number(),
+      title: z.string(),
+      body: z.string(),
+      issue_url: z.string().optional(),
+    })
+    .passthrough()
+    .nullable(),
+  model: z.string(),
+  reasoning: z.string(),
+  sandbox: z.string(),
+  approval_policy: z.string(),
+  successful_count: z.number(),
+  task_limit: z.number(),
+  stop_requested: z.boolean(),
+  schedule_outcome: z.string(),
+  schedule_reason: z.string(),
+  messages: z.array(workMessage),
+  controls: z.array(workControl),
+  attempts: z
+    .array(
+      z.object({
+        id: z.string(),
+        ordinal: z.number(),
+        phase: z.string(),
+        outcome: z.string(),
+        predecessor_id: z.string(),
+        created_at: z.string(),
+        settled_at: z.string(),
+      }),
+    )
+    .optional(),
+});
+export type WorkOverview = z.infer<typeof workOverview>;
+export function workOverviewQuery(runID: string) {
+  return queryOptions({
+    queryKey: ["runs", runID, "work"],
+    queryFn: () => request(`/runs/${encodeURIComponent(runID)}/work`, workOverview),
+    refetchInterval: 1500,
+    retry: false,
+  });
+}
+export function sendWorkMessage(
+  runID: string,
+  input: {
+    id: string;
+    attempt_id: string;
+    thread_id: string;
+    expected_turn_id: string;
+    target: "live" | "next";
+    body: string;
+  },
+) {
+  return request(`/runs/${encodeURIComponent(runID)}/messages`, workMessage, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+export function sendWorkControl(
+  runID: string,
+  input: {
+    id: string;
+    attempt_id: string;
+    action: "finish" | "undo" | "interrupt" | "continue";
+    mode?: string;
+    instructions?: string;
+  },
+) {
+  return request(`/runs/${encodeURIComponent(runID)}/controls`, workControl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+const workChanges = z.object({
+  paths: z.array(z.object({ path: z.string(), status: z.string() })),
+  truncated: z.boolean(),
+});
+const workDiff = z.object({ path: z.string(), diff: z.string(), truncated: z.boolean() });
+export function workChangesQuery(runID: string) {
+  return queryOptions({
+    queryKey: ["runs", runID, "changes"],
+    queryFn: () => request(`/runs/${encodeURIComponent(runID)}/changes`, workChanges),
+    refetchInterval: 3000,
+    retry: false,
+  });
+}
+export function workDiffQuery(runID: string, path: string) {
+  return queryOptions({
+    queryKey: ["runs", runID, "changes", path],
+    queryFn: () =>
+      request(
+        `/runs/${encodeURIComponent(runID)}/changes?path=${encodeURIComponent(path)}`,
+        workDiff,
+      ),
+    enabled: Boolean(path),
     retry: false,
   });
 }

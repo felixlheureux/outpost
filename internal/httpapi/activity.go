@@ -296,7 +296,7 @@ func writeSSE(w http.ResponseWriter, flusher http.Flusher, value string) error {
 
 func openArtifact(stateDir string, a store.ActivityArtifact) (*os.File, error) {
 	safeID := regexp.MustCompile(`^[A-Za-z0-9_]{1,100}$`)
-	if a.Kind != "provider-events" || !safeID.MatchString(a.AssignmentID) || !safeID.MatchString(a.RunID) || !safeID.MatchString(a.AttemptID) || a.ID != "artifact_"+a.AssignmentID || a.RelativePath != "artifacts/"+a.RunID+"/"+a.AttemptID+"/provider-events.jsonl" {
+	if a.Kind != "provider-events" || !safeID.MatchString(a.AssignmentID) || !safeID.MatchString(a.RunID) || !safeID.MatchString(a.AttemptID) || (a.ID != "artifact_"+a.AssignmentID && a.ID != "artifact_"+a.AttemptID) || a.RelativePath != "artifacts/"+a.RunID+"/"+a.AttemptID+"/provider-events.jsonl" {
 		return nil, fmt.Errorf("invalid artifact manifest")
 	}
 	root, err := os.OpenRoot(stateDir)

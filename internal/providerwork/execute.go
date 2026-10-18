@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -157,6 +158,12 @@ func providerSummary(event codexadapter.Event) (category, summary string) {
 // Execute writes intent before the task turn and stores exact provider IDs.
 // A completed handoff advances to validation; it is never task success.
 func Execute(ctx context.Context, db *store.Store, stateDir, executable string, assignment store.Assignment, schedule store.Schedule, workspace string) (codexadapter.Completion, error) {
+	return ExecuteContinuation(ctx, db, stateDir, executable, assignment, schedule, workspace, "", "")
+}
+
+// ExecuteContinuation retains the original pinned assignment and records a
+// distinct provider attempt. A saved thread is resumed only when requested.
+func ExecuteContinuation(ctx context.Context, db *store.Store, stateDir, executable string, assignment store.Assignment, schedule store.Schedule, workspace, resumeThread, directions string) (codexadapter.Completion, error) {
 	var zero codexadapter.Completion
 	if !regexp.MustCompile(`^[A-Za-z0-9_]{1,100}$`).MatchString(assignment.ID) {
 		return zero, fmt.Errorf("invalid assignment artifact identity")
@@ -173,6 +180,9 @@ func Execute(ctx context.Context, db *store.Store, stateDir, executable string, 
 	if err != nil {
 		return zero, err
 	}
+	if directions != "" {
+		prompt += "\n\nCurrent authenticated operator continuation directions:\n" + directions
+	}
 	var pinned struct {
 		WorkspacePath string `json:"workspace_path"`
 	}
@@ -183,16 +193,26 @@ func Execute(ctx context.Context, db *store.Store, stateDir, executable string, 
 	if err != nil {
 		return zero, err
 	}
-	settings := codexadapter.Settings{Workspace: workspace, Model: p.Agent.Model, Reasoning: p.Agent.Reasoning, Sandbox: p.Agent.Sandbox, ApprovalPolicy: p.Agent.ApprovalPolicy}
+	settings := codexadapter.Settings{Workspace: workspace, Model: p.Agent.Model, Reasoning: p.Agent.Reasoning, Sandbox: p.Agent.Sandbox, ApprovalPolicy: p.Agent.ApprovalPolicy, ThreadID: resumeThread}
 	if err := db.BeginProvider(ctx, store.ProviderAttempt{AssignmentID: assignment.ID, Version: version, Model: settings.Model, Reasoning: settings.Reasoning, Sandbox: settings.Sandbox, ApprovalPolicy: settings.ApprovalPolicy, Prompt: prompt}); err != nil {
 		return zero, err
 	}
 	var artifact *store.ActivityArtifact
 	var events *eventFile
+	var interrupted atomic.Bool
+	providerAttempt, err := db.GetProviderAttempt(ctx, assignment.ID)
+	if err != nil {
+		return zero, err
+	}
 	finishFailure := func(cause error) error {
 		state, code := "failed", "provider_error"
+		if interrupted.Load() {
+			state, code = "interrupted", "operator_interrupt"
+		}
 		if errors.Is(cause, codexadapter.ErrUnknown) || errors.Is(cause, context.Canceled) {
-			state, code = "unknown", "outcome_unknown"
+			if !interrupted.Load() {
+				state, code = "unknown", "outcome_unknown"
+			}
 		}
 		settle, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -203,6 +223,12 @@ func Execute(ctx context.Context, db *store.Store, stateDir, executable string, 
 		}
 		if err := db.FinishProvider(settle, assignment.ID, state, "", code); err != nil {
 			return fmt.Errorf("%w; provider receipt update failed: %v", cause, err)
+		}
+		if err := db.ReconcileWorkMessages(settle, providerAttempt.AttemptID); err != nil {
+			return fmt.Errorf("%w; message reconciliation failed: %v", cause, err)
+		}
+		if err := db.ReconcileInterruptControls(settle, providerAttempt.AttemptID); err != nil {
+			return fmt.Errorf("%w; interrupt reconciliation failed: %v", cause, err)
 		}
 		return cause
 	}
@@ -275,9 +301,61 @@ func Execute(ctx context.Context, db *store.Store, stateDir, executable string, 
 	if err := db.ProviderTurn(ctx, assignment.ID, turnID); err != nil {
 		return zero, finishFailure(err)
 	}
+	controlCtx, stopControls := context.WithCancel(ctx)
+	controlsDone := make(chan struct{})
+	go func() {
+		defer close(controlsDone)
+		poll := time.NewTicker(200 * time.Millisecond)
+		defer poll.Stop()
+		for {
+			select {
+			case <-controlCtx.Done():
+				return
+			case <-poll.C:
+			}
+			if m, err := db.ClaimWorkMessage(controlCtx, providerAttempt.AttemptID, threadID, turnID); err == nil {
+				callCtx, cancel := context.WithTimeout(controlCtx, 12*time.Second)
+				callErr := c.Steer(callCtx, threadID, turnID, m.Body)
+				cancel()
+				state, reason := "accepted", "provider acknowledged direction"
+				if callErr != nil {
+					state, reason = "rejected", callErr.Error()
+					if errors.Is(callErr, codexadapter.ErrUnknown) {
+						state = "unknown"
+					}
+				}
+				_ = db.SettleWorkMessage(controlCtx, m.ID, state, reason)
+			}
+			if control, err := db.ClaimWorkControl(controlCtx, assignment.RunID, "interrupt"); err == nil {
+				if control.AttemptID != providerAttempt.AttemptID {
+					_ = db.SettleWorkControl(controlCtx, control.ID, "rejected", "target attempt changed")
+					continue
+				}
+				callCtx, cancel := context.WithTimeout(controlCtx, 12*time.Second)
+				callErr := c.Interrupt(callCtx, threadID, turnID)
+				cancel()
+				state, reason := "accepted", "provider acknowledged interruption"
+				if callErr != nil {
+					state, reason = "rejected", callErr.Error()
+					if errors.Is(callErr, codexadapter.ErrUnknown) {
+						state = "unknown"
+					}
+				} else {
+					interrupted.Store(true)
+				}
+				_ = db.SettleWorkControl(controlCtx, control.ID, state, reason)
+			}
+		}
+	}()
+	defer func() { stopControls(); <-controlsDone }()
 	var reportedBytes int64
 	var reportedTruncated bool
 	result, err := c.WaitTurn(ctx, threadID, turnID, func(event codexadapter.Event) error {
+		if event.Method == "turn/completed" {
+			if err := db.CloseProviderTurn(ctx, providerAttempt.AttemptID, turnID); err != nil {
+				return err
+			}
+		}
 		if err := events.record(event); err != nil {
 			return err
 		}
@@ -293,6 +371,8 @@ func Execute(ctx context.Context, db *store.Store, stateDir, executable string, 
 		}
 		return nil
 	})
+	stopControls()
+	<-controlsDone
 	if err != nil {
 		return result, finishFailure(err)
 	}
@@ -304,6 +384,12 @@ func Execute(ctx context.Context, db *store.Store, stateDir, executable string, 
 	}
 	b, _ := json.Marshal(result.Handoff)
 	if err := db.FinishProvider(ctx, assignment.ID, "completed", string(b), ""); err != nil {
+		return result, err
+	}
+	if err := db.ReconcileWorkMessages(ctx, providerAttempt.AttemptID); err != nil {
+		return result, err
+	}
+	if err := db.ReconcileInterruptControls(ctx, providerAttempt.AttemptID); err != nil {
 		return result, err
 	}
 	if err := db.AdvanceAttemptPhase(ctx, assignment.ID, "implementing", "validating"); err != nil {

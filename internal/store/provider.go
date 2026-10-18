@@ -42,7 +42,7 @@ func (s *Store) ProviderTurn(ctx context.Context, assignmentID, turnID string) e
 	if turnID == "" || len(turnID) > 160 {
 		return fmt.Errorf("invalid provider turn")
 	}
-	result, err := s.DB.ExecContext(ctx, `UPDATE provider_attempts SET turn_id=?,state='turn_started',updated_at=? WHERE assignment_id=? AND state='thread_started'`, turnID, time.Now().UTC().Format(time.RFC3339Nano), assignmentID)
+	result, err := s.DB.ExecContext(ctx, `UPDATE provider_attempts SET turn_id=?,state='turn_started',turn_open=1,updated_at=? WHERE assignment_id=? AND state='thread_started'`, turnID, time.Now().UTC().Format(time.RFC3339Nano), assignmentID)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (s *Store) FinishProvider(ctx context.Context, assignmentID, state, handoff
 	if len(failureCode) > 100 {
 		return fmt.Errorf("invalid provider failure code")
 	}
-	result, err := s.DB.ExecContext(ctx, `UPDATE provider_attempts SET state=?,handoff_json=?,failure_code=?,updated_at=? WHERE assignment_id=? AND state IN ('pending','thread_started','turn_started')`, state, handoffJSON, failureCode, time.Now().UTC().Format(time.RFC3339Nano), assignmentID)
+	result, err := s.DB.ExecContext(ctx, `UPDATE provider_attempts SET state=?,turn_open=0,handoff_json=?,failure_code=?,updated_at=? WHERE assignment_id=? AND state IN ('pending','thread_started','turn_started')`, state, handoffJSON, failureCode, time.Now().UTC().Format(time.RFC3339Nano), assignmentID)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (s *Store) FinishProvider(ctx context.Context, assignmentID, state, handoff
 
 func (s *Store) GetProviderAttempt(ctx context.Context, assignmentID string) (ProviderAttempt, error) {
 	var p ProviderAttempt
-	err := s.DB.QueryRowContext(ctx, `SELECT assignment_id,attempt_id,state,version,model,reasoning,sandbox,approval_policy,prompt,thread_id,turn_id,handoff_json,failure_code FROM provider_attempts WHERE assignment_id=?`, assignmentID).
+	err := s.DB.QueryRowContext(ctx, `SELECT assignment_id,attempt_id,state,version,model,reasoning,sandbox,approval_policy,prompt,thread_id,turn_id,handoff_json,failure_code FROM provider_attempts WHERE assignment_id=? ORDER BY created_at DESC,attempt_id DESC LIMIT 1`, assignmentID).
 		Scan(&p.AssignmentID, &p.AttemptID, &p.State, &p.Version, &p.Model, &p.Reasoning, &p.Sandbox, &p.ApprovalPolicy, &p.Prompt, &p.ThreadID, &p.TurnID, &p.HandoffJSON, &p.FailureCode)
 	return p, err
 }

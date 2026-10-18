@@ -44,9 +44,9 @@ through the installed Codex App Server. The CLI `outpost run --project ID --mode
 MODEL --reasoning EFFORT` reserves a run and launches its worker; choose a model
 and effort returned by the project's `/api/v1/agent/capabilities` endpoint.
 Provider handoff remains assigned until runner checks and delivery are integrated.
-The browser Start control is therefore still disabled.
-While a run exists, Work now shows retained activity and a reconnecting live
-stream. See `docs/activity.md` for cursor, reset, preview and artifact bounds.
+While a run exists, Work shows retained activity, live turn instructions,
+stop/continue receipts, and current checkout changes. See `docs/activity.md` for
+stream and artifact bounds and `docs/work.md` for the control contract.
 
 ## SQL and route generation
 
@@ -107,7 +107,12 @@ The opt-in `OUTPOST_REAL_CODEX_TEST=1 go test ./internal/codexadapter
 ./internal/providerwork` runs real Codex turns in disposable repositories and
 needs an authenticated service-user account. The owned provider test also
 verifies the SQLite receipt and leaves the assignment awaiting validation.
-Ordinary tests use a protocol fixture.
+Ordinary tests use a protocol fixture. Set `OUTPOST_REAL_CODEX_CONTROL_TEST=1`
+to run the separate real steering, interruption, process settlement, and
+saved-session resume acceptance in a disposable repository. Set
+`OUTPOST_REAL_CODEX_WORK_CONTROL_TEST=1` for the full Outpost SQLite receipt,
+provider control, and linked continuation acceptance in another disposable
+repository.
 These tests do not establish production user-systemd ownership, Tailscale private
 identity, GitHub write permissions or phone acceptance. Those need separate host,
 account and device evidence.

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -104,6 +105,7 @@ func Start(ctx context.Context, executable, workspace string) (*Client, error) {
 	processCtx, stop := context.WithCancel(ctx)
 	cmd := exec.CommandContext(processCtx, executable, "app-server", "--listen", "stdio://")
 	cmd.Dir = workspace
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		stop()
@@ -353,14 +355,22 @@ func (c *Client) Close() error {
 	var err error
 	c.closeOnce.Do(func() {
 		c.stop()
+		if c.cmd.Process != nil {
+			_ = syscall.Kill(-c.cmd.Process.Pid, syscall.SIGTERM)
+		}
 		_ = c.stdin.Close()
 		wait := make(chan error, 1)
 		go func() { wait <- c.cmd.Wait() }()
 		select {
 		case err = <-wait:
 		case <-time.After(3 * time.Second):
-			_ = c.cmd.Process.Kill()
+			if c.cmd.Process != nil {
+				_ = syscall.Kill(-c.cmd.Process.Pid, syscall.SIGKILL)
+			}
 			err = <-wait
+		}
+		if c.cmd.Process != nil {
+			_ = syscall.Kill(-c.cmd.Process.Pid, syscall.SIGKILL)
 		}
 	})
 	return err
