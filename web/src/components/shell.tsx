@@ -12,7 +12,7 @@ import {
   Sun,
   Terminal,
 } from "lucide-react";
-import { createContext, lazy, type ReactNode, Suspense, useContext, useState } from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,9 +20,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import AddRepositoryDialog from "@/features/projects/add-repository-dialog";
 import { bootstrapQuery, projectsQuery } from "@/lib/api";
-
-const AddRepositoryDialog = lazy(() => import("@/features/projects/add-repository-dialog"));
 
 const SetupContext = createContext<() => void>(() => {});
 export function useSetup() {
@@ -180,20 +179,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </footer>
         </div>
         {hasOpened && (
-          <Suspense
-            fallback={
-              <p role="status" className="loading-dialog">
-                Opening repository setup…
-              </p>
-            }
-          >
-            <AddRepositoryDialog
-              open={open}
-              onOpenChange={setOpen}
-              url={url}
-              onURLChange={setURL}
-            />
-          </Suspense>
+          <AddRepositoryDialog open={open} onOpenChange={setOpen} url={url} onURLChange={setURL} />
         )}
       </div>
     </SetupContext>
