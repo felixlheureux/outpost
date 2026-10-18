@@ -91,3 +91,46 @@ test("URL onboarding and second repository keep separate browsing context", asyn
   ).toBeLessThanOrEqual(1);
   expect(projects).toHaveLength(2);
 });
+
+test("paused repository setup can be retried from Work", async ({ page }) => {
+  const project = {
+    id: "project_1",
+    name: "owner/alpha",
+    repository_url: "https://github.com/owner/alpha",
+    setup_state: "pending",
+    setup_stage: "source_pending",
+    setup_error: "",
+    created_at: "2026-10-18T12:00:00Z",
+  };
+  await page.route("**/api/v1/bootstrap", (route) =>
+    route.fulfill({
+      json: {
+        version: "test",
+        mode: "development",
+        current_run: null,
+        capabilities: { repository_setup: true, execution: false },
+      },
+    }),
+  );
+  await page.route("**/api/v1/projects", (route) =>
+    route.fulfill({ json: { projects: [project] } }),
+  );
+  await page.route("**/api/v1/projects/project_1/retry", (route) => {
+    project.setup_state = "ready";
+    project.setup_stage = "ready";
+    return route.fulfill({ json: project });
+  });
+  await page.route("**/api/v1/projects/project_1/issues", (route) =>
+    route.fulfill({
+      json: { source: { state: "ready", last_success_at: "", last_error: "" }, issues: [] },
+    }),
+  );
+  await page.goto("/work?project=project_1");
+  await expect(
+    page.getByRole("heading", { name: "Repository setup is still in progress" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Retry setup" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Repository setup is still in progress" }),
+  ).toHaveCount(0);
+});

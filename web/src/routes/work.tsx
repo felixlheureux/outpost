@@ -1,14 +1,19 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StartPanel } from "@/features/queue/queue-manifest";
 import { ActivityView } from "@/features/work/activity-view";
-import { bootstrapQuery, projectIssuesQuery, projectsQuery } from "@/lib/api";
+import { bootstrapQuery, projectIssuesQuery, projectsQuery, retryRepositorySetup } from "@/lib/api";
 
 export const Route = createFileRoute("/work")({ component: Work });
 
 function Work() {
+  const queryClient = useQueryClient();
+  const retry = useMutation({
+    mutationFn: retryRepositorySetup,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey }),
+  });
   const { data: projects } = useSuspenseQuery(projectsQuery);
   const { data: bootstrap } = useSuspenseQuery({ ...bootstrapQuery, refetchInterval: 5000 });
   const selectedProjectID = useRouterState({ select: (state) => state.location.search.project });
@@ -67,7 +72,11 @@ function Work() {
       ) : project.setup_state !== "ready" ? (
         <div className="work-state" role="status">
           <h2>Repository setup is still in progress</h2>
-          <p>Finish setup before reviewing an assignment.</p>
+          <p>{project.setup_error || "Retry setup to finish issue and queue initialization."}</p>
+          <Button disabled={retry.isPending} onClick={() => retry.mutate(project.id)}>
+            {retry.isPending ? "Retrying setup…" : "Retry setup"}
+          </Button>
+          {retry.isError && <p role="alert">{retry.error.message}</p>}
           <Button asChild variant="outline">
             <Link to="/" search={{ project: project.id }}>
               Open Queue

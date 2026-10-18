@@ -98,19 +98,17 @@ function Queue() {
               <p>
                 {project.setup_error ||
                   (project.setup_stage === "source_pending"
-                    ? "Checkout ready. Issue and queue setup is pending."
+                    ? "Checkout ready. Retry setup to finish issue and queue initialization."
                     : "Outpost is preparing this repository.")}
               </p>
             </div>
-            {project.setup_state === "failed" && (
-              <Button
-                variant="outline"
-                disabled={retry.isPending}
-                onClick={() => retry.mutate(project.id)}
-              >
-                {retry.isPending ? "Retrying setup…" : "Retry setup"}
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              disabled={retry.isPending}
+              onClick={() => retry.mutate(project.id)}
+            >
+              {retry.isPending ? "Retrying setup…" : "Retry setup"}
+            </Button>
             {retry.isError && <p role="alert">{retry.error.message}</p>}
           </div>
         )}
