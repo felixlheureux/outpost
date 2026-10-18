@@ -40,7 +40,8 @@ func ParseURL(raw string) (owner, name string, err error) {
 
 func CheckAuth(ctx context.Context) error {
 	// gh stores authentication in its own credential store; never call `gh auth token`.
-	_, err := hostcmd.Run(ctx, "", "gh", nil, "auth", "status", "--hostname", "github.com", "--active")
+	// A real API read verifies that the service user's gh session works now.
+	_, err := hostcmd.Run(ctx, "", "gh", nil, "api", "--hostname", "github.com", "--method", "GET", "user")
 	return err
 }
 

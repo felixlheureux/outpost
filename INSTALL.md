@@ -1,6 +1,6 @@
 # Install and onboard Outpost
 
-**Status:** The source-build/local-preview instructions below work for the starter. Release assets, the guided installer, private Tailscale identity and worker are still being built. The release-install sections are the implementation contract for issues #2, #8 and #16; their planned commands are not available yet.
+**Status:** The source-build/local-preview instructions below work. A local-binary `outpost install --prepare` path prepares a private web service without changing an existing Serve route. The installer detects missing Debian/Ubuntu host tools and installs them through scoped apt or official Tailscale/Codex scripts; sign-in remains an explicit user step. Add repository now creates a managed checkout through the host `gh` login, then reports issue/queue source setup as pending. A user-systemd worker fixture verifies supervision and ownership, but real coding execution is not available. The complete owner workflow and public release assets are still being built.
 
 ## Choose release installation or source build
 
@@ -19,11 +19,20 @@ The initial automated package path targets Debian/Ubuntu-family Linux with syste
 
 Use the project's actual release assets for your Linux architecture, or its delivered `scripts/install.sh` bootstrap. The bootstrap must verify the published checksum and call the canonical installer. It must support an explicitly supplied locally built binary so installation can be tested before the first public release exists.
 
-No download URL, artifact name, or bootstrap flag is invented in this starter. OP-002/016 must put the real verified invocation here when those artifacts exist. The canonical configuration entry point is:
+`scripts/install.sh` accepts a locally built binary now. Its release-download path expects future `outpost-linux-amd64` or `outpost-linux-arm64` assets and matching `.sha256` files; no release asset is currently published, so that path must not be reported as working until OP-016 publishes and verifies it. The canonical configuration entry point is:
 
 ```sh
 ./outpost install
 ```
+
+For a local build on this host, prepare the web service while retaining the current Serve route:
+
+```sh
+make build
+scripts/install.sh --binary "$(pwd)/bin/outpost" --prepare
+```
+
+This detects missing Git, `gh`, curl, Tailscale, Codex, and boot lingering, prints each scoped host action, and installs missing tools by default. `--install-deps=false` prints the needed actions and stops without installing them. Existing tools are reused. You must complete any missing Tailscale, Codex, or GitHub sign-in as the service user and rerun the same command. It installs the binary, private paths and user web unit, applies idle-safe migrations, and checks the loopback API. It does not start coding work or claim an owner-device HTTPS check. The final cutover uses `outpost install --replace-serve-from http://127.0.0.1:OLDPORT` after the replacement workflow is ready; the old root proxy must match exactly. Do not use that flag for an unrelated route.
 
 ### 2. Let the installer inspect and install prerequisites
 
@@ -70,6 +79,7 @@ The expected operational commands, once implemented and installed, are:
 ```sh
 outpost doctor
 outpost status
+outpost stop --run-id RUN_ID
 ```
 
 ### 5. Add your first repository
@@ -97,11 +107,32 @@ make build
 ./bin/outpost serve --dev
 ```
 
-Open **http://127.0.0.1:7331** on the same machine. This is a local preview, with no production identity. The Go executable serves the actual built UI/API without Vite or Node. State defaults to `$XDG_STATE_HOME/outpost` or `~/.local/state/outpost` with private permissions; `--state-dir /absolute/private/path` overrides it for both migrate and serve. `serve` never silently migrates. To develop with hot frontend refresh, use `make dev` and open http://127.0.0.1:5173.
+Open **http://127.0.0.1:8080** on the same machine. This is a local preview, with no production identity. The Go executable serves the actual built UI/API without Vite or Node. State defaults to `$XDG_STATE_HOME/outpost` or `~/.local/state/outpost` with private permissions; `--state-dir /absolute/private/path` overrides it for both migrate and serve. `serve` never silently migrates. To develop with hot frontend refresh, use `make dev` and open http://127.0.0.1:5173.
 
-`./bin/outpost doctor` checks installed Git plus existing GitHub/Codex/Tailscale access and reports missing steps. Optional `--repo https://github.com/owner/repo` checks repository read access. These checks do not install anything, prove write permissions, configure Serve, or establish worker readiness. No authentication is needed to build or view the local empty shell.
+`./bin/outpost doctor` checks installed Git, existing GitHub/Codex/Tailscale access, the user systemd bus, boot lingering, and the configured private Serve route. Optional `--repo https://github.com/owner/repo` checks repository read access. These checks do not install anything, prove write permissions, configure Serve, or establish worker readiness. No authentication is needed to build or view the local empty shell.
 
-Do not expose development mode through a proxy or public listener. Production `serve`, `install`, worker and status are deliberately unavailable until OP-002 implements the private boundary and lifecycle. The built binary is that task’s installer input; a separate source-only service architecture is unnecessary. See docs/development.md for checks and docs/dependencies.md for the sign-in contract.
+Do not expose development mode through a proxy or public listener. Private `serve`, a preparation-stage `install`, read-only `status`, and a guarded `stop --run-id` are available. Worker supervision has a fixture path for acceptance testing; real coding execution awaits the provider adapter. The built binary is the installer input for OP-002. See docs/development.md for checks and docs/dependencies.md for the sign-in contract.
+
+### Manually exercise the private request boundary
+
+This is an integration path for the access boundary, not the completed installation flow. Run as the eventual service user after Tailscale sign-in. Choose the actual node DNS name from `tailscale status --json` and the exact allowed Tailscale user login. Before creating the route, inspect `tailscale serve status --json`; preserve any existing HTTPS port 443 route. If that port is already occupied, stop and choose a host/port strategy rather than replacing it.
+
+Create `~/.config/outpost/config.json` in a private directory, with mode 0600, replacing the example values:
+
+```json
+{"origin":"https://host.tailnet.ts.net","allowed_login":"owner@example.com"}
+```
+
+With no conflicting port 443 route, configure only this private Serve mount:
+
+```sh
+tailscale serve --bg --https=443 http://127.0.0.1:8080
+./bin/outpost migrate
+./bin/outpost doctor
+./bin/outpost serve
+```
+
+Normal `serve` requires the configured DNS name to match this running Tailscale node. `doctor` checks the Serve root and Funnel state. Requests need the exact allowed `Tailscale-User-Login` header from the local Serve proxy; mutations also need the exact HTTPS Origin. This trust boundary includes local processes on the host, so keep the host and service user private. Verify the actual URL from an allowed tailnet device; this document's example is not an installed URL.
 
 ## Diagnostics and common setup problems
 

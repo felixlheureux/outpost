@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { bootstrapQuery, projectsQuery } from "@/lib/api";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  validateSearch: (search: Record<string, unknown>): { project?: string } =>
+    typeof search.project === "string" ? { project: search.project } : {},
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.ensureQueryData(bootstrapQuery),

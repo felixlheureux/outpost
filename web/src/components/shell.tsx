@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { bootstrapQuery } from "@/lib/api";
+import { bootstrapQuery, projectsQuery } from "@/lib/api";
 
 const AddRepositoryDialog = lazy(() => import("@/features/projects/add-repository-dialog"));
 
@@ -31,7 +31,23 @@ export function useSetup() {
 
 export function Shell({ children }: { children: ReactNode }) {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery);
+  const { data: projectData } = useSuspenseQuery({
+    ...projectsQuery,
+    refetchInterval: (query) =>
+      query.state.data?.projects.some((project) =>
+        ["reserved", "inspecting", "cloning", "configuring"].includes(project.setup_stage),
+      )
+        ? 1500
+        : false,
+  });
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const selectedProjectID = useRouterState({ select: (state) => state.location.search.project });
+  const selectedProject =
+    projectData.projects.find((project) => project.id === selectedProjectID) ??
+    projectData.projects[0];
+  const runningProject = projectData.projects.find(
+    (project) => project.id === bootstrap.current_run?.project_id,
+  );
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const [url, setURL] = useState("");
@@ -65,13 +81,24 @@ export function Shell({ children }: { children: ReactNode }) {
             <p className="eyebrow">Repository</p>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="project-trigger" aria-label="Add repository">
+                <Button
+                  variant="outline"
+                  className="project-trigger"
+                  aria-label="Choose repository"
+                >
                   <GitFork size={16} />
-                  <span>Add repository</span>
+                  <span>{selectedProject?.name ?? "Add repository"}</span>
                   <ChevronDown size={14} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
+                {projectData.projects.map((project) => (
+                  <DropdownMenuItem key={project.id} asChild>
+                    <Link to="/" search={{ project: project.id }}>
+                      {project.name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
                 <DropdownMenuItem onSelect={openSetup}>
                   <Plus size={16} />
                   Add repository
@@ -88,6 +115,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <Link
                 key={to}
                 to={to}
+                search={{ project: selectedProject?.id }}
                 activeOptions={{ exact: true }}
                 activeProps={{ className: "nav-link active", "aria-current": "page" }}
                 inactiveProps={{ className: "nav-link" }}
@@ -100,7 +128,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="sidebar-bottom">
             <div className="local-status">
               <Circle size={7} fill="currentColor" />
-              <span>Local development</span>
+              <span>{bootstrap.mode === "private" ? "Private host" : "Local development"}</span>
             </div>
             <div className="sidebar-meta">
               <span>{bootstrap.version}</span>
@@ -122,20 +150,33 @@ export function Shell({ children }: { children: ReactNode }) {
               <span className="breadcrumb-slash">/</span>
               <span>{title}</span>
             </div>
-            <span className="mode-label">STARTER</span>
+            <span className="mode-label">
+              {bootstrap.mode === "private" ? "PRIVATE" : "DEVELOPMENT"}
+            </span>
           </header>
           <div className="starter-notice">
             <span className="notice-dot" />
-            Local preview · Repository setup and coding runs are still being built.
+            Repository checkout setup is available. Issue queue and coding runs are still being
+            built.
           </div>
           <main id="main-content">{children}</main>
           <footer className="run-bar">
             <div>
               <Circle size={8} />
-              <strong>No active run</strong>
-              <span>The execution slot is free.</span>
+              <strong>
+                {bootstrap.current_run
+                  ? (runningProject?.name ?? bootstrap.current_run.id)
+                  : "No active run"}
+              </strong>
+              <span>
+                {bootstrap.current_run
+                  ? `${bootstrap.current_run.state} · worker ${bootstrap.current_run.liveness}`
+                  : "The execution slot is free."}
+              </span>
             </div>
-            <span className="run-bar-label">Host-local preview</span>
+            <span className="run-bar-label">
+              {bootstrap.mode === "private" ? "Private host" : "Local preview"}
+            </span>
           </footer>
         </div>
         {hasOpened && (

@@ -1,8 +1,10 @@
 # Starter architecture
 
 Outpost is one Go executable with an embedded React SPA and SQLite migrations.
-The starter implements the local shell and persistence boundary. It does not yet
-clone repositories, run Codex, authenticate a Tailscale operator, or install services.
+The starter implements the local shell and persistence boundary. The current
+implementation adds a pinned Tailscale operator boundary, a preparation-stage
+private web service, worker ownership fixtures and managed GitHub cloning.
+Issue/queue setup and Codex work are not yet integrated.
 The complete behavior contract remains the technical specification.
 
 ## Follow a request
@@ -23,6 +25,8 @@ or service layers for every table in advance.
 | `internal/hostcmd` | Bounded noninteractive subprocess execution without a shell |
 | `internal/gitcli` | Native Git checkout facts; extend for clone/delivery later |
 | `internal/githubcli` | GitHub URL parsing and authenticated `gh api` metadata |
+| `internal/projectsetup` | Durable managed checkout staging, clone and retry |
+| `internal/supervisor`, `internal/worker` | Recorded worker units, process identity and workspace exclusion |
 | `web/assets*.go` | Production embedding; explicit development build variant |
 | `web/src/routes` | TanStack Router file routes and route-level composition |
 | `web/src/lib/api.ts` | Fetch, explicit error envelope, Zod response validation, Query keys |
@@ -33,7 +37,8 @@ or service layers for every table in advance.
 
 GitHub Issues own task requirements; the planning branch owns queue order. The
 SQLite projects table is the first local projection, not a second task source.
-No task/rank/run tables are invented before their owning task defines them.
+The runs table owns one global execution slot and launch receipts; no task rank
+field is authoritative.
 HTTP DTOs omit database internals and host paths.
 
 Use native Git for clone/status/diff/commit/push. Use `gh api` for GitHub Issues,
@@ -56,7 +61,8 @@ builds embed `web/dist`; compiling without those assets fails. `-tags dev` is
 an explicit asset-free build for development tests. It is not a release fallback.
 `serve --dev` is loopback-only, rejects external Host headers and cross-origin
 mutations, and explicitly has no production identity. Tailscale is not configured
-by this starter. OP-002 must add verified identity before enabling normal serve.
+by the original starter. Normal `serve` now uses the configured Tailscale node
+and login; the route is checked separately so web can start before a Serve cutover.
 
 `migrate` applies embedded Goose migrations; `serve` only checks their version.
 Stop all future services before upgrades. SQLite uses WAL, foreign keys, a busy
@@ -66,7 +72,7 @@ coding checkout. The state directory must be 0700 and database 0600.
 
 ## Frontend ownership and design
 
-TanStack Router owns locations and future typed URL filters. Query owns server
+TanStack Router owns locations and project URL selection. Query owns server
 data; the router receives the same QueryClient and preloads through
 `ensureQueryData`. Do not create a second route cache of project/run objects.
 React owns transient drafts. The Add repository dialog stays mounted at the root,
@@ -80,10 +86,10 @@ the navigation into a top strip. Honor reduced motion and visible focus.
 
 ## Next integration points
 
-OP-002: replace explicit development-only serving with verified private identity,
-installer and independent web/worker supervision; extend doctor honestly.
-OP-003: add durable managed-clone/source setup, expand the projects migration,
-replace the deliberate 501 response, and wire project selection/routes. The
-bootstrap capability must remain false until the complete setup path exists.
+OP-002: verify the private Serve cutover and owner-device access when the
+replacement workflow is usable, and connect worker supervision to actual runs.
+OP-003: connect the managed checkout to issue/queue source setup and complete
+interrupted-clone recovery and readiness reporting. Advanced existing-checkout
+registration and guarded setup retry are available.
 OP-004/005: add issue synchronization and the one-file queue through githubcli.
 OP-007/008: add scheduler/provider lifecycles without binding them to HTTP contexts.

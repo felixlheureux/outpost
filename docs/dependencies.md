@@ -53,8 +53,9 @@ Codex uses its own supported account sign-in and Tailscale its own device sign-i
 Account authorization still requires the user, and private-repository/organization
 policies may require additional approval. There is no Outpost account to create.
 Do not open login flows from background HTTP/worker commands or log tool output
-containing credentials. The automated installer remains OP-002, not a working
-feature of the starter.
+containing credentials. The OP-002 installer now installs missing supported host
+tools and preserves existing CLI sign-ins; real project and provider readiness
+remain separate from installation.
 
 ## Updating
 

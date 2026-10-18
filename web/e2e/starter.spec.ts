@@ -1,11 +1,25 @@
 import { expect, test } from "@playwright/test";
 
-test("embedded SPA, honest setup boundary, preserved draft and mobile navigation", async ({
-  page,
-  request,
-}) => {
+test("embedded SPA, preserved setup draft and mobile navigation", async ({ page, request }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  await page.route("**/api/v1/projects", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 409,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: {
+            code: "setup_needs_attention",
+            message: "Repository setup needs attention. Check host GitHub access, then retry.",
+            request_id: "fixture-request",
+          },
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Bring your next project." })).toBeVisible();
   await page.getByRole("button", { name: "Add repository", exact: true }).last().click();
@@ -13,11 +27,11 @@ test("embedded SPA, honest setup boundary, preserved draft and mobile navigation
   const input = dialog.getByLabel("GitHub repository");
   await input.fill("https://github.com/felixlheureux/outpost");
   await dialog.getByRole("button", { name: "Add repository", exact: true }).click();
-  await expect(dialog.getByRole("alert")).toContainText("Your URL has been kept");
+  await expect(dialog.getByRole("alert")).toContainText("Repository setup needs attention");
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("link", { name: "Work", exact: true }).click();
   await expect(page.getByRole("heading", { name: "No active run" })).toBeVisible();
-  await page.getByRole("button", { name: "Add repository", exact: true }).click();
+  await page.getByRole("button", { name: "Choose repository", exact: true }).click();
   await page.getByRole("menuitem", { name: "Add repository" }).click();
   await expect(input).toHaveValue("https://github.com/felixlheureux/outpost");
   await page.keyboard.press("Escape");

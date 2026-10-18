@@ -1,5 +1,6 @@
-import { useMutation } from "@tanstack/react-query";
-import type { FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { addRepository } from "@/lib/api";
+import { addExistingRepository, addRepository, projectsQuery } from "@/lib/api";
 
 type Props = {
   open: boolean;
@@ -19,10 +20,42 @@ type Props = {
 };
 
 export default function AddRepositoryDialog({ open, onOpenChange, url, onURLChange }: Props) {
-  const mutation = useMutation({ mutationFn: addRepository });
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { data: projectData } = useQuery(projectsQuery);
+  const [existing, setExisting] = useState(false);
+  const [checkoutPath, setCheckoutPath] = useState("");
+  const mutation = useMutation({
+    mutationFn: () =>
+      existing ? addExistingRepository(checkoutPath.trim()) : addRepository(url.trim()),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey }),
+  });
+  useEffect(() => {
+    if (!mutation.isPending) return;
+    const timer = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey });
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [mutation.isPending, queryClient]);
+  const normalizedURL = url
+    .trim()
+    .replace(/\.git\/?$/i, "")
+    .replace(/\/$/, "")
+    .toLowerCase();
+  const activeSetup = projectData?.projects.find(
+    (project) => project.repository_url.toLowerCase() === normalizedURL,
+  );
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    mutation.mutate(url.trim());
+    mutation.mutate(undefined, {
+      onSuccess: async (project) => {
+        await queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey });
+        await navigate({ to: "/", search: { project: project.id } });
+        onURLChange("");
+        setCheckoutPath("");
+        onOpenChange(false);
+      },
+    });
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -30,28 +63,67 @@ export default function AddRepositoryDialog({ open, onOpenChange, url, onURLChan
         <DialogHeader>
           <DialogTitle>Add repository</DialogTitle>
           <DialogDescription>
-            Paste a GitHub URL. Outpost will use the host’s existing GitHub login.
+            {existing
+              ? "Select an existing Git checkout on the Outpost host. Its files stay in place."
+              : "Paste a GitHub URL. Outpost will use the host’s existing GitHub login."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="repository-form">
-          <label htmlFor="repository-url">GitHub repository</label>
-          <Input
-            id="repository-url"
-            type="url"
-            placeholder="https://github.com/owner/repo"
-            autoComplete="off"
-            required
-            value={url}
-            onChange={(event) => {
-              onURLChange(event.target.value);
+          {existing ? (
+            <>
+              <label htmlFor="checkout-path">Checkout path on host</label>
+              <Input
+                id="checkout-path"
+                type="text"
+                placeholder="/home/you/code/repository"
+                autoComplete="off"
+                required
+                value={checkoutPath}
+                onChange={(event) => {
+                  setCheckoutPath(event.target.value);
+                  mutation.reset();
+                }}
+                aria-describedby="setup-availability"
+              />
+            </>
+          ) : (
+            <>
+              <label htmlFor="repository-url">GitHub repository</label>
+              <Input
+                id="repository-url"
+                type="url"
+                placeholder="https://github.com/owner/repo"
+                autoComplete="off"
+                required
+                value={url}
+                onChange={(event) => {
+                  onURLChange(event.target.value);
+                  mutation.reset();
+                }}
+                aria-describedby="setup-availability"
+              />
+            </>
+          )}
+          <p id="setup-availability" className="form-hint">
+            {existing
+              ? "Outpost checks the GitHub origin and preserves local changes. Issue and queue setup follows registration."
+              : "Outpost uses the host GitHub login and keeps an interrupted checkout for inspection. Issue and queue setup follows the clone."}
+          </p>
+          {!existing && mutation.isPending && activeSetup && (
+            <p role="status" className="form-hint">
+              {activeSetup.name}: {activeSetup.setup_stage.replaceAll("_", " ")}
+            </p>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setExisting(!existing);
               mutation.reset();
             }}
-            aria-describedby="setup-availability"
-          />
-          <p id="setup-availability" className="form-hint">
-            This starter has the setup form. Managed cloning and source setup arrive in OP-003;
-            submitting won’t create a project yet.
-          </p>
+          >
+            {existing ? "Clone from GitHub instead" : "Use an existing checkout"}
+          </Button>
           {mutation.isError && (
             <p className="form-error" role="alert">
               {mutation.error.message}
@@ -62,7 +134,11 @@ export default function AddRepositoryDialog({ open, onOpenChange, url, onURLChan
               Cancel
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Checking…" : "Add repository"}
+              {mutation.isPending
+                ? existing
+                  ? "Inspecting checkout…"
+                  : "Inspecting and cloning…"
+                : "Add repository"}
             </Button>
           </div>
         </form>

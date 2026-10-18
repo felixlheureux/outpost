@@ -1,43 +1,64 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { ArrowUpRight, GitBranch, GitFork, ListOrdered, Play } from "lucide-react";
 import { useSetup } from "@/components/shell";
 import { Button } from "@/components/ui/button";
-import { projectsQuery } from "@/lib/api";
+import { projectsQuery, retryRepositorySetup } from "@/lib/api";
 
 export const Route = createFileRoute("/")({ component: Queue });
 
 function Queue() {
   const { data } = useSuspenseQuery(projectsQuery);
+  const selectedProjectID = useRouterState({ select: (state) => state.location.search.project });
+  const project = data.projects.find((item) => item.id === selectedProjectID) ?? data.projects[0];
   const openSetup = useSetup();
-  if (data.projects.length > 0)
+  const queryClient = useQueryClient();
+  const retry = useMutation({
+    mutationFn: retryRepositorySetup,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey }),
+  });
+  if (project)
     return (
       <section className="page">
         <div className="page-title">
           <div>
-            <p className="eyebrow">Repositories</p>
-            <h1>Your projects</h1>
+            <p className="eyebrow">{project.name}</p>
+            <h1>Queue</h1>
+            <p>Repository setup: {project.setup_stage.replaceAll("_", " ")}</p>
           </div>
           <Button onClick={openSetup}>Add repository</Button>
         </div>
         <div className="project-list">
-          {data.projects.map((project) => (
-            <article key={project.id}>
-              <GitFork size={20} />
-              <div>
-                <h2>{project.name}</h2>
-                <p>Setup: {project.setup_state}</p>
-              </div>
-              <a
-                href={project.repository_url}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Open ${project.name} on GitHub`}
-              >
-                <ArrowUpRight size={18} />
-              </a>
-            </article>
-          ))}
+          <article>
+            <GitFork size={20} />
+            <div>
+              <h2>{project.name}</h2>
+              {project.setup_stage === "source_pending" ? (
+                <p>Checkout ready. Issue and queue setup is pending.</p>
+              ) : (
+                <p>Setup: {project.setup_stage.replaceAll("_", " ")}</p>
+              )}
+              {project.setup_error && <p role="status">{project.setup_error}</p>}
+              {project.setup_state === "failed" && (
+                <Button
+                  variant="outline"
+                  disabled={retry.isPending}
+                  onClick={() => retry.mutate(project.id)}
+                >
+                  {retry.isPending ? "Retrying setup…" : "Retry setup"}
+                </Button>
+              )}
+              {retry.isError && <p role="alert">{retry.error.message}</p>}
+            </div>
+            <a
+              href={project.repository_url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Open ${project.name} on GitHub`}
+            >
+              <ArrowUpRight size={18} />
+            </a>
+          </article>
         </div>
       </section>
     );

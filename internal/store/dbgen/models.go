@@ -4,6 +4,10 @@
 
 package dbgen
 
+import (
+	"database/sql"
+)
+
 type Project struct {
 	ID            string
 	GithubOwner   string
@@ -11,4 +15,24 @@ type Project struct {
 	RepositoryUrl string
 	SetupState    string
 	CreatedAt     string
+	GithubID      sql.NullInt64
+	WorkspacePath sql.NullString
+	SetupStage    string
+	SetupError    sql.NullString
+	Managed       int64
+}
+
+type Run struct {
+	ID                string
+	ProjectID         string
+	RequestKey        string
+	WorkspacePath     string
+	LaunchToken       string
+	UnitName          string
+	State             string
+	LaunchObservation string
+	WorkerPid         sql.NullInt64
+	WorkerStartTicks  sql.NullString
+	CreatedAt         string
+	UpdatedAt         string
 }

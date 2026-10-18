@@ -18,7 +18,7 @@ trap 'exit 143' TERM
 # Override to keep a development DB between runs. No state is kept in the checkout.
 dev_state_dir="${OUTPOST_DEV_STATE_DIR:-$dev_root/state}"
 "$dev_root/outpost" --state-dir "$dev_state_dir" migrate
-"$dev_root/outpost" --state-dir "$dev_state_dir" serve --dev &
+"$dev_root/outpost" --state-dir "$dev_state_dir" serve --dev --listen 127.0.0.1:7331 &
 backend_pid=$!
 (cd web && exec node node_modules/vite/bin/vite.js --host 127.0.0.1 --strictPort) &
 frontend_pid=$!

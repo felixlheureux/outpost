@@ -3,8 +3,15 @@ import { z } from "zod";
 
 const bootstrap = z.object({
   version: z.string(),
-  mode: z.literal("development"),
-  current_run: z.null(),
+  mode: z.enum(["development", "private"]),
+  current_run: z
+    .object({
+      id: z.string(),
+      project_id: z.string(),
+      state: z.string(),
+      liveness: z.enum(["active", "stopped", "unknown"]),
+    })
+    .nullable(),
   capabilities: z.object({ repository_setup: z.boolean(), execution: z.boolean() }),
 });
 
@@ -15,10 +22,13 @@ const projects = z.object({
       name: z.string(),
       repository_url: z.url(),
       setup_state: z.enum(["pending", "ready", "failed"]),
+      setup_stage: z.string(),
+      setup_error: z.string().optional(),
       created_at: z.iso.datetime(),
     }),
   ),
 });
+const project = projects.shape.projects.element;
 
 const errorResponse = z.object({
   error: z.object({ code: z.string(), message: z.string(), request_id: z.string() }),
@@ -63,11 +73,28 @@ export const projectsQuery = queryOptions({
   queryFn: () => request("/projects", projects),
 });
 
-// This endpoint deliberately returns feature_unavailable until OP-003 implements durable setup.
 export function addRepository(repositoryURL: string) {
-  return request("/projects", z.unknown(), {
+  return request("/projects", project.omit({ created_at: true }), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ repository_url: repositoryURL }),
   });
+}
+
+export function addExistingRepository(checkoutPath: string) {
+  return request("/projects/existing", project.omit({ created_at: true }), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ checkout_path: checkoutPath }),
+  });
+}
+
+export function retryRepositorySetup(projectID: string) {
+  return request(
+    `/projects/${encodeURIComponent(projectID)}/retry`,
+    project.omit({ created_at: true }),
+    {
+      method: "POST",
+    },
+  );
 }

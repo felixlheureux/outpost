@@ -7,28 +7,42 @@ package dbgen
 
 import (
 	"context"
+	"database/sql"
 )
 
 const listProjects = `-- name: ListProjects :many
-SELECT id, github_owner, github_name, repository_url, setup_state, created_at
+SELECT id, github_owner, github_name, repository_url, setup_state, setup_stage, setup_error, created_at
 FROM projects ORDER BY created_at, id
 `
 
-func (q *Queries) ListProjects(ctx context.Context) ([]Project, error) {
+type ListProjectsRow struct {
+	ID            string
+	GithubOwner   string
+	GithubName    string
+	RepositoryUrl string
+	SetupState    string
+	SetupStage    string
+	SetupError    sql.NullString
+	CreatedAt     string
+}
+
+func (q *Queries) ListProjects(ctx context.Context) ([]ListProjectsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listProjects)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Project{}
+	items := []ListProjectsRow{}
 	for rows.Next() {
-		var i Project
+		var i ListProjectsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.GithubOwner,
 			&i.GithubName,
 			&i.RepositoryUrl,
 			&i.SetupState,
+			&i.SetupStage,
+			&i.SetupError,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
