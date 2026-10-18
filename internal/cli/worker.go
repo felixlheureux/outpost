@@ -44,6 +44,9 @@ func addWorker(root *cobra.Command, stateDir *string) {
 			var codexPath string
 			var run store.Run
 			var schedule store.Schedule
+			var completeAssignment scheduler.Execute
+			var executeAssignment scheduler.Execute
+			var reportAssignments func()
 			err := func() error {
 				codexPath, err = codexadapter.FindExecutable()
 				if err != nil {
@@ -57,11 +60,7 @@ func addWorker(root *cobra.Command, stateDir *string) {
 				if err != nil {
 					return err
 				}
-				_, err = (scheduler.Engine{DB: db}).Drive(cmd.Context(), runID, func(ctx context.Context, a store.Assignment) (string, string, error) {
-					_, err := providerwork.Execute(ctx, db, *stateDir, codexPath, a, schedule, run.WorkspacePath)
-					if err != nil {
-						return "", "", err
-					}
+				completeAssignment = func(ctx context.Context, a store.Assignment) (string, string, error) {
 					var policy struct {
 						CheckProfile validation.Profile `json:"check_profile"`
 					}
@@ -163,21 +162,31 @@ func addWorker(root *cobra.Command, stateDir *string) {
 							return "", "", err
 						}
 					}
-				})
-				var reportPolicy struct {
-					CloseIssue bool `json:"close_issue"`
 				}
-				_ = json.Unmarshal([]byte(schedule.PolicyJSON), &reportPolicy)
-				completed, reportErr := db.UnreportedAssignments(cmd.Context(), runID)
-				if reportErr == nil {
-					for _, done := range completed {
-						if _, sendErr := delivery.Report(cmd.Context(), db, done, reportPolicy.CloseIssue, nil); sendErr != nil {
-							fmt.Fprintln(cmd.ErrOrStderr(), "GitHub result pending:", sendErr)
-						}
+				executeAssignment = func(ctx context.Context, a store.Assignment) (string, string, error) {
+					if _, executeErr := providerwork.Execute(ctx, db, *stateDir, codexPath, a, schedule, run.WorkspacePath); executeErr != nil {
+						return "", "", executeErr
 					}
-				} else {
-					fmt.Fprintln(cmd.ErrOrStderr(), "GitHub report lookup:", reportErr)
+					return completeAssignment(ctx, a)
 				}
+				reportAssignments = func() {
+					var reportPolicy struct {
+						CloseIssue bool `json:"close_issue"`
+					}
+					_ = json.Unmarshal([]byte(schedule.PolicyJSON), &reportPolicy)
+					completed, reportErr := db.UnreportedAssignments(cmd.Context(), runID)
+					if reportErr == nil {
+						for _, done := range completed {
+							if _, sendErr := delivery.Report(cmd.Context(), db, done, reportPolicy.CloseIssue, nil); sendErr != nil {
+								fmt.Fprintln(cmd.ErrOrStderr(), "GitHub result pending:", sendErr)
+							}
+						}
+					} else {
+						fmt.Fprintln(cmd.ErrOrStderr(), "GitHub report lookup:", reportErr)
+					}
+				}
+				_, err = (scheduler.Engine{DB: db}).Drive(cmd.Context(), runID, executeAssignment)
+				reportAssignments()
 				return err
 			}()
 			if err == nil {
@@ -225,9 +234,28 @@ func addWorker(root *cobra.Command, stateDir *string) {
 				if control.Mode == "resume" {
 					resume = threadID
 				}
-				_, executeErr := providerwork.ExecuteContinuation(cmd.Context(), db, *stateDir, codexPath, assignment, schedule, run.WorkspacePath, resume, control.Instructions)
-				if executeErr != nil {
+				if _, executeErr := providerwork.ExecuteContinuation(cmd.Context(), db, *stateDir, codexPath, assignment, schedule, run.WorkspacePath, resume, control.Instructions); executeErr != nil {
 					fmt.Fprintln(cmd.ErrOrStderr(), executeErr)
+					continue
+				}
+				outcome, head, finishErr := completeAssignment(cmd.Context(), assignment)
+				if finishErr == nil {
+					finishErr = db.SettleAssignment(cmd.Context(), assignment.ID, outcome, head)
+				}
+				if finishErr == nil && outcome == "succeeded" {
+					_, finishErr = (scheduler.Engine{DB: db}).Drive(cmd.Context(), runID, executeAssignment)
+				}
+				if reportAssignments != nil {
+					reportAssignments()
+				}
+				if finishErr != nil {
+					fmt.Fprintln(cmd.ErrOrStderr(), finishErr)
+					continue
+				}
+				if scheduleNow, scheduleErr := db.GetSchedule(cmd.Context(), runID); scheduleErr == nil && scheduleNow.Outcome != "active" {
+					if completeErr := db.CompleteWorker(cmd.Context(), runID, pid, ticks); completeErr == nil {
+						return nil
+					}
 				}
 			}
 		}
