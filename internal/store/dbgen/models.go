@@ -8,6 +8,48 @@ import (
 	"database/sql"
 )
 
+type IssueOperation struct {
+	ID               string
+	ProjectID        string
+	RequestKey       string
+	Kind             string
+	IssueNumber      sql.NullInt64
+	ExpectedDigest   sql.NullString
+	ExpectedRevision sql.NullInt64
+	Title            string
+	Body             string
+	Marker           string
+	State            string
+	ResultNumber     sql.NullInt64
+	Reason           string
+	CreatedAt        string
+	UpdatedAt        string
+}
+
+type IssueSource struct {
+	ProjectID        string
+	NodeID           string
+	GithubID         int64
+	Number           int64
+	Url              string
+	Title            string
+	Body             string
+	State            string
+	SourceUpdatedAt  string
+	ContentDigest    string
+	FetchedAt        string
+	LocalRevision    int64
+	RequirementsJson string
+	ParseError       sql.NullString
+}
+
+type IssueSourceStatus struct {
+	ProjectID     string
+	State         string
+	LastSuccessAt sql.NullString
+	LastError     sql.NullString
+}
+
 type Project struct {
 	ID            string
 	GithubOwner   string

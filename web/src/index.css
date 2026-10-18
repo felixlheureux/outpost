@@ -459,6 +459,122 @@ nav {
 .project-list article a {
   margin-left: auto;
 }
+.issue-source-panel {
+  margin-top: 28px;
+}
+.issue-source-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.issue-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.issue-source-title {
+  margin-top: 5px;
+  font-size: 19px;
+  font-weight: 600;
+}
+.issue-source-note {
+  margin: 12px 0 16px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.issue-list {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+.issue-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(130px, auto) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.issue-row:last-child {
+  border-bottom: 0;
+}
+.issue-row:hover {
+  background: var(--muted);
+}
+.issue-list span,
+.issue-list small {
+  color: var(--muted-foreground);
+}
+.issue-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.issue-source-panel .issue-row > a {
+  min-width: 0;
+}
+.issue-editor-dialog {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+.issue-body-input {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--input);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  line-height: 1.5;
+}
+.issue-conflict {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+.issue-conflict pre {
+  max-height: 170px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.issue-receipts {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+}
+.issue-receipts h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.issue-receipt {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  font-size: 12px;
+}
+.issue-receipt small {
+  color: var(--muted-foreground);
+  flex: 1 1 220px;
+}
+.issue-receipt button {
+  margin-left: auto;
+}
 @media (max-width: 1000px) {
   .app-shell {
     grid-template-columns: 190px minmax(0, 1fr);
@@ -481,6 +597,16 @@ nav {
   }
 }
 @media (max-width: 700px) {
+  .issue-row {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+  }
+  .issue-list small {
+    grid-column: 2;
+  }
+  .issue-row > button {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
   .app-shell {
     display: block;
   }

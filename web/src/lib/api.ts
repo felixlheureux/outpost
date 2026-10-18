@@ -98,3 +98,96 @@ export function retryRepositorySetup(projectID: string) {
     },
   );
 }
+
+export const issueSource = z.object({
+  source: z.object({
+    state: z.enum(["not_synced", "ready", "needs_attention"]),
+    last_success_at: z.string(),
+    last_error: z.string(),
+  }),
+  issues: z.array(
+    z.object({
+      number: z.number().int().positive(),
+      url: z.url(),
+      title: z.string(),
+      body: z.string(),
+      state: z.enum(["open", "closed"]),
+      source_updated_at: z.string(),
+      content_digest: z.string(),
+      fetched_at: z.string(),
+      local_revision: z.number().int().positive(),
+      requirements: z.unknown().nullable(),
+      parse_error: z.string(),
+      stale: z.boolean(),
+    }),
+  ),
+});
+
+export function projectIssuesQuery(projectID: string) {
+  return queryOptions({
+    queryKey: ["projects", projectID, "issues"],
+    queryFn: () => request(`/projects/${encodeURIComponent(projectID)}/issues`, issueSource),
+    refetchInterval: 30_000,
+  });
+}
+
+export type IssueSource = z.infer<typeof issueSource>["issues"][number];
+
+const issueOperation = z.object({
+  id: z.string(),
+  request_key: z.string(),
+  kind: z.enum(["create", "edit"]),
+  state: z.enum(["pending", "confirmed", "rejected", "conflict", "unknown"]),
+  issue_number: z.number().int().nonnegative(),
+  result_number: z.number().int().nonnegative(),
+  reason: z.string(),
+  created_at: z.string(),
+});
+
+export function issueOperationsQuery(projectID: string) {
+  return queryOptions({
+    queryKey: ["projects", projectID, "issue-operations"],
+    queryFn: () =>
+      request(
+        `/projects/${encodeURIComponent(projectID)}/issue-operations`,
+        z.object({ operations: z.array(issueOperation) }),
+      ),
+  });
+}
+
+export function inspectIssueOperation(projectID: string, requestKey: string) {
+  return request(
+    `/projects/${encodeURIComponent(projectID)}/issue-operations/${encodeURIComponent(requestKey)}/inspect`,
+    issueOperation,
+    { method: "POST" },
+  );
+}
+
+export function writeIssue(
+  projectID: string,
+  input: {
+    request_key: string;
+    title: string;
+    body: string;
+    issue_number?: number;
+    expected_digest?: string;
+    expected_revision?: number;
+  },
+) {
+  const path = input.issue_number ? `/issues/${input.issue_number}` : "/issues";
+  return request(`/projects/${encodeURIComponent(projectID)}${path}`, issueOperation, {
+    method: input.issue_number ? "PATCH" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function syncProjectIssues(projectID: string) {
+  return request(
+    `/projects/${encodeURIComponent(projectID)}/issues/sync`,
+    z.object({ observed: z.number().int().nonnegative() }),
+    {
+      method: "POST",
+    },
+  );
+}

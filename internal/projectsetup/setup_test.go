@@ -32,8 +32,12 @@ func TestRealGitHubManagedCloneAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.Stage != "source_pending" || !validClone(ctx, first.WorkspacePath, first.Owner, first.Name) {
+	if first.Stage != "queue_pending" || !validClone(ctx, first.WorkspacePath, first.Owner, first.Name) {
 		t.Fatalf("clone was not published: %+v", first)
+	}
+	observed, source, err := db.ListIssueSources(ctx, first.ID)
+	if err != nil || source.State != "ready" || len(observed) == 0 {
+		t.Fatalf("GitHub source was not observed: %d issues, %+v, %v", len(observed), source, err)
 	}
 	second, err := Setup(ctx, db, state, workspaces, strings.TrimSuffix(url, ".git")+".git")
 	if err != nil || second.ID != first.ID || second.WorkspacePath != first.WorkspacePath {

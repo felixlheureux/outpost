@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/felixlheureux/outpost/internal/githubcli"
+	"github.com/felixlheureux/outpost/internal/issues"
 	"github.com/felixlheureux/outpost/internal/store"
 )
 
@@ -120,7 +121,16 @@ func sourcePending(ctx context.Context, db *store.Store, project store.ProjectSe
 	if project.State == "ready" {
 		return project, nil
 	}
-	if err := db.SetProjectStage(ctx, project.ID, "source_pending", "pending", ""); err != nil {
+	if err := db.SetProjectStage(ctx, project.ID, "source_syncing", "pending", ""); err != nil {
+		return project, err
+	}
+	if _, err := issues.Sync(ctx, db, project.ID); err != nil {
+		settle, done := context.WithTimeout(context.Background(), 5*time.Second)
+		defer done()
+		_ = db.SetProjectStage(settle, project.ID, "source_needs_attention", "failed", "Checkout retained. GitHub issue access needs attention; retry setup after checking host access.")
+		return project, fmt.Errorf("GitHub issue source unavailable: %w", err)
+	}
+	if err := db.SetProjectStage(ctx, project.ID, "queue_pending", "pending", ""); err != nil {
 		return project, err
 	}
 	return db.GetProjectSetup(ctx, project.ID)

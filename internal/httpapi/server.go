@@ -14,10 +14,12 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/felixlheureux/outpost/internal/githubcli"
+	"github.com/felixlheureux/outpost/internal/issues"
 	"github.com/felixlheureux/outpost/internal/privateaccess"
 	"github.com/felixlheureux/outpost/internal/projectsetup"
 	"github.com/felixlheureux/outpost/internal/store"
@@ -78,7 +80,8 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 			timeout := 15 * time.Second
 			if c.Request().Method == http.MethodPost &&
 				(c.Request().URL.Path == "/api/v1/projects" ||
-					(strings.HasPrefix(c.Request().URL.Path, "/api/v1/projects/") && strings.HasSuffix(c.Request().URL.Path, "/retry"))) {
+					(strings.HasPrefix(c.Request().URL.Path, "/api/v1/projects/") &&
+						(strings.HasSuffix(c.Request().URL.Path, "/retry") || strings.HasSuffix(c.Request().URL.Path, "/issues/sync") || strings.HasSuffix(c.Request().URL.Path, "/inspect")))) {
 				timeout = 10 * time.Minute
 			}
 			ctx, cancel := context.WithTimeout(c.Request().Context(), timeout)
@@ -193,6 +196,118 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 		}
 		return c.JSON(200, projectDTO{ID: project.ID, Name: project.Owner + "/" + project.Name, RepositoryURL: project.RepositoryURL, SetupState: project.State, SetupStage: project.Stage, SetupError: project.Error})
 	})
+	e.GET("/api/v1/projects/:id/issues", func(c *echo.Context) error {
+		projectID := c.Param("id")
+		if _, err := db.GetProjectSetup(c.Request().Context(), projectID); errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		} else if err != nil {
+			return err
+		}
+		rows, status, err := db.ListIssueSources(c.Request().Context(), projectID)
+		if err != nil {
+			return err
+		}
+		items := make([]map[string]any, 0, len(rows))
+		for _, issue := range rows {
+			items = append(items, map[string]any{
+				"number": issue.Number, "url": issue.URL, "title": issue.Title, "body": issue.Body,
+				"state": issue.State, "source_updated_at": issue.SourceUpdatedAt,
+				"content_digest": issue.ContentDigest, "fetched_at": issue.FetchedAt,
+				"local_revision": issue.LocalRevision, "requirements": json.RawMessage(issue.RequirementsJSON),
+				"parse_error": issue.ParseError, "stale": status.LastSuccessAt != "" && issue.FetchedAt != status.LastSuccessAt,
+			})
+		}
+		if status.State == "" {
+			status.State = "not_synced"
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, map[string]any{"issues": items, "source": map[string]string{"state": status.State, "last_success_at": status.LastSuccessAt, "last_error": status.LastError}})
+	})
+	e.POST("/api/v1/projects/:id/issues/sync", func(c *echo.Context) error {
+		count, err := issues.Sync(c.Request().Context(), db, c.Param("id"))
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		}
+		if err != nil {
+			logger.Warn("GitHub issue sync needs attention", "error", err)
+			return fail(c, 503, "source_unavailable", "GitHub issues could not be refreshed. Existing observations were preserved.")
+		}
+		return c.JSON(200, map[string]int{"observed": count})
+	})
+	issueOperationDTO := func(op store.IssueOperation) map[string]any {
+		return map[string]any{"id": op.ID, "request_key": op.RequestKey, "kind": op.Kind,
+			"state": op.State, "issue_number": op.IssueNumber, "result_number": op.ResultNumber,
+			"reason": op.Reason, "created_at": op.CreatedAt}
+	}
+	mutateIssue := func(c *echo.Context, kind string) error {
+		var input issues.Mutation
+		decoder := json.NewDecoder(c.Request().Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil {
+			return fail(c, 400, "invalid_issue", "Enter an issue title, body, and stable request key.")
+		}
+		if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+			return fail(c, 400, "invalid_issue", "Send one issue operation.")
+		}
+		if kind == "edit" {
+			number, err := strconv.Atoi(c.Param("number"))
+			if err != nil || number <= 0 || (input.IssueNumber != 0 && input.IssueNumber != number) {
+				return fail(c, 400, "invalid_issue", "Issue number does not match the edit target.")
+			}
+			input.IssueNumber = number
+		}
+		op, err := issues.Mutate(c.Request().Context(), db, c.Param("id"), kind, input)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		}
+		if err != nil {
+			logger.Warn("issue operation failed locally", "error", err)
+			return fail(c, 400, "invalid_issue", "Issue operation could not be accepted. Check the title, body, request key, and source revision.")
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, issueOperationDTO(op))
+	}
+	e.POST("/api/v1/projects/:id/issues", func(c *echo.Context) error { return mutateIssue(c, "create") })
+	e.PATCH("/api/v1/projects/:id/issues/:number", func(c *echo.Context) error { return mutateIssue(c, "edit") })
+	e.GET("/api/v1/projects/:id/issue-operations", func(c *echo.Context) error {
+		if _, err := db.GetProjectSetup(c.Request().Context(), c.Param("id")); errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		} else if err != nil {
+			return err
+		}
+		ops, err := db.ListIssueOperations(c.Request().Context(), c.Param("id"))
+		if err != nil {
+			return err
+		}
+		items := make([]map[string]any, 0, len(ops))
+		for _, op := range ops {
+			items = append(items, issueOperationDTO(op))
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, map[string]any{"operations": items})
+	})
+	e.GET("/api/v1/projects/:id/issue-operations/:key", func(c *echo.Context) error {
+		op, err := db.GetIssueOperation(c.Request().Context(), c.Param("id"), c.Param("key"))
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "operation_not_found", "Issue operation was not found.")
+		}
+		if err != nil {
+			return err
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, issueOperationDTO(op))
+	})
+	e.POST("/api/v1/projects/:id/issue-operations/:key/inspect", func(c *echo.Context) error {
+		op, err := issues.Inspect(c.Request().Context(), db, c.Param("id"), c.Param("key"))
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "operation_not_found", "Issue operation was not found.")
+		}
+		if err != nil {
+			return err
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, issueOperationDTO(op))
+	})
 	missingAPI := func(c *echo.Context) error { return fail(c, 404, "not_found", "API endpoint not found.") }
 	e.Any("/api", missingAPI)
 	e.Any("/api/*", missingAPI)
@@ -262,7 +377,7 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+		r.Body = http.MaxBytesReader(w, r.Body, 300<<10)
 		protected.ServeHTTP(w, r)
 	})
 }

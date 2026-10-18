@@ -13,11 +13,36 @@ import (
 	"time"
 )
 
-const maxOutput = 2 << 20
+const maxOutput = 16 << 20
 
 type limitedBuffer struct {
 	bytes.Buffer
 	overflow bool
+}
+
+// CommandError exposes only a diagnostic category. Raw CLI output may contain credentials.
+type CommandError struct{ Kind string }
+
+func (e *CommandError) Error() string {
+	return "host command " + e.Kind + "; check the tool's login and repository access"
+}
+
+func classifyFailure(stderr string) string {
+	lower := strings.ToLower(stderr)
+	switch {
+	case strings.Contains(lower, "rate limit"), strings.Contains(lower, "http 429"), strings.Contains(lower, "secondary rate"):
+		return "rate_limited"
+	case strings.Contains(lower, "http 401"), strings.Contains(lower, "authentication required"), strings.Contains(lower, "not logged in"):
+		return "authentication_required"
+	case strings.Contains(lower, "http 403"), strings.Contains(lower, "resource not accessible"), strings.Contains(lower, "permission"):
+		return "permission_denied"
+	case strings.Contains(lower, "http 404"), strings.Contains(lower, "not found"):
+		return "inaccessible_or_missing"
+	case strings.Contains(lower, "http 5"), strings.Contains(lower, "timed out"), strings.Contains(lower, "connection"):
+		return "unavailable"
+	default:
+		return "failed"
+	}
 }
 
 func (b *limitedBuffer) Write(p []byte) (int, error) {
@@ -58,7 +83,7 @@ func Run(ctx context.Context, dir, name string, input io.Reader, args ...string)
 		if errors.Is(err, exec.ErrNotFound) {
 			return nil, fmt.Errorf("%s is not installed", name)
 		}
-		return nil, fmt.Errorf("%s command failed; check the tool's login and repository access", name)
+		return nil, &CommandError{Kind: classifyFailure(stderr.String())}
 	}
 	if stdout.overflow || stderr.overflow {
 		return nil, fmt.Errorf("%s output exceeded limit", name)

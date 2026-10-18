@@ -51,9 +51,13 @@ func RegisterExisting(ctx context.Context, db *store.Store, checkoutPath string)
 	if err != nil {
 		return project, fmt.Errorf("could not inspect existing checkout changes")
 	}
-	stage, message := "source_pending", ""
+	project, err = sourcePending(ctx, db, project)
+	if err != nil {
+		return project, err
+	}
+	stage, message := "queue_pending", ""
 	if dirty != "" {
-		stage, message = "source_pending_dirty", "Existing checkout has local changes; inspect before execution."
+		stage, message = "queue_pending_dirty", "Existing checkout has local changes; inspect before execution."
 	}
 	if err := db.SetProjectStage(ctx, project.ID, stage, "pending", message); err != nil {
 		return project, err

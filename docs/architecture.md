@@ -3,8 +3,9 @@
 Outpost is one Go executable with an embedded React SPA and SQLite migrations.
 The starter implements the local shell and persistence boundary. The current
 implementation adds a pinned Tailscale operator boundary, a preparation-stage
-private web service, worker ownership fixtures and managed GitHub cloning.
-Issue/queue setup and Codex work are not yet integrated.
+private web service, worker ownership fixtures, managed GitHub cloning and an
+issue source projection with durable create/edit receipts. Planning queue setup
+and Codex work are not yet integrated.
 The complete behavior contract remains the technical specification.
 
 ## Follow a request
@@ -25,6 +26,7 @@ or service layers for every table in advance.
 | `internal/hostcmd` | Bounded noninteractive subprocess execution without a shell |
 | `internal/gitcli` | Native Git checkout facts; extend for clone/delivery later |
 | `internal/githubcli` | GitHub URL parsing and authenticated `gh api` metadata |
+| `internal/issues` | Bounded requirements parsing, source sync and issue mutation reconciliation |
 | `internal/projectsetup` | Durable managed checkout staging, clone and retry |
 | `internal/supervisor`, `internal/worker` | Recorded worker units, process identity and workspace exclusion |
 | `web/assets*.go` | Production embedding; explicit development build variant |
@@ -91,5 +93,5 @@ replacement workflow is usable, and connect worker supervision to actual runs.
 OP-003: connect the managed checkout to issue/queue source setup and complete
 interrupted-clone recovery and readiness reporting. Advanced existing-checkout
 registration and guarded setup retry are available.
-OP-004/005: add issue synchronization and the one-file queue through githubcli.
+OP-005: add the one-file queue through githubcli and finish the managed source phase.
 OP-007/008: add scheduler/provider lifecycles without binding them to HTTP contexts.
