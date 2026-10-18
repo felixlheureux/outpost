@@ -1,6 +1,6 @@
 # Install and onboard Outpost
 
-**Status:** The source build and local-binary install work on the configured host. The release target now produces the Linux binaries and checksums expected by the bootstrap; the tag workflow publishes them after checks pass. No release is published yet, so the bootstrap download path is not currently installable. Clean-host and owner-device acceptance remain outstanding.
+**Status:** The `v0.1.0-rc1` prerelease is published with Linux amd64/arm64 binaries and checksums. Its bootstrap installed the verified amd64 asset on the configured host and confirmed the private dashboard. A stable release and clean-host acceptance remain outstanding.
 
 ## Choose release installation or source build
 
@@ -17,9 +17,9 @@ The initial automated package path targets Debian/Ubuntu-family Linux with syste
 
 ### 1. Obtain the executable
 
-After a release is published, download its `scripts/install.sh` bootstrap from the matching tag and run it as the service user. It selects `outpost-linux-amd64` or `outpost-linux-arm64`, verifies the matching `.sha256` asset, then invokes the canonical installer. Use `--release vX.Y.Z-rcN` to test a named prerelease; the default uses GitHub's latest stable release. The bootstrap also accepts an explicitly supplied locally built binary.
+Download `scripts/install.sh` from the matching release tag and run it as the service user. It selects `outpost-linux-amd64` or `outpost-linux-arm64`, verifies the matching `.sha256` asset, then invokes the canonical installer. Use `--release v0.1.0-rc1` for the published prerelease; the default uses GitHub's latest stable release, which is not published yet. The bootstrap also accepts an explicitly supplied locally built binary.
 
-No release asset is currently published, so the download path must not be reported as working until a tag build publishes and verifies it. The canonical configuration entry point is:
+The canonical configuration entry point is:
 
 ```sh
 ./outpost install
