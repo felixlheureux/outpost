@@ -24,9 +24,9 @@ import (
 )
 
 type installOptions struct {
-	configPath, stateDir, workspacesDir, binaryPath string
-	allowedLogin, replaceServeFrom                  string
-	prepare, installDeps                            bool
+	configPath, stateDir, workspacesDir, binaryPath, backupDir string
+	allowedLogin, replaceServeFrom                             string
+	prepare, installDeps, upgrade                              bool
 }
 
 func defaultUserPath(base, suffix string) string {
@@ -54,10 +54,12 @@ func addInstall(root *cobra.Command, stateDir *string, out io.Writer) {
 	cmd.Flags().StringVar(&opts.configPath, "config", privateaccess.DefaultPath(), "Private access configuration file")
 	cmd.Flags().StringVar(&opts.workspacesDir, "workspaces-dir", defaultUserPath("XDG_DATA_HOME", "outpost/workspaces"), "Managed workspace directory")
 	cmd.Flags().StringVar(&opts.binaryPath, "binary", defaultUserPath("XDG_BIN_HOME", "outpost"), "Installed executable path")
+	cmd.Flags().StringVar(&opts.backupDir, "backup-dir", "", "Private backup created before a binary upgrade")
 	cmd.Flags().StringVar(&opts.allowedLogin, "allowed-login", "", "Exact allowed Tailscale user login (defaults to node owner)")
 	cmd.Flags().StringVar(&opts.replaceServeFrom, "replace-serve-from", "", "Expected old root proxy to replace, such as http://127.0.0.1:9000")
 	cmd.Flags().BoolVar(&opts.prepare, "prepare", false, "Install and verify the local service without changing Tailscale Serve")
 	cmd.Flags().BoolVar(&opts.installDeps, "install-deps", true, "Install missing supported host tools through scoped package or official CLI installers")
+	cmd.Flags().BoolVar(&opts.upgrade, "upgrade", false, "Replace a differing binary after an idle backup")
 	root.AddCommand(cmd)
 }
 
@@ -88,15 +90,30 @@ func runInstall(ctx context.Context, opts installOptions, out io.Writer) error {
 	if err := ensurePrivateDir(opts.workspacesDir); err != nil {
 		return err
 	}
-	if err := installBinary(opts.binaryPath); err != nil {
-		return err
-	}
 	db, err := store.Open(ctx, opts.stateDir)
 	if err != nil {
 		return err
 	}
 	active, err := outpostWebActive(ctx)
 	if err != nil {
+		db.Close()
+		return err
+	}
+	if opts.upgrade {
+		if active {
+			db.Close()
+			return fmt.Errorf("stop outpost.service before upgrading")
+		}
+		if err := ensureMigrationIdle(ctx, db, opts.stateDir); err != nil {
+			db.Close()
+			return err
+		}
+		if err := verifyUpgradeBackup(opts); err != nil {
+			db.Close()
+			return err
+		}
+	}
+	if err := installBinary(opts.binaryPath, opts.upgrade, opts.backupDir); err != nil {
 		db.Close()
 		return err
 	}
@@ -193,7 +210,7 @@ func ensurePrivateDir(path string) error {
 	return nil
 }
 
-func installBinary(target string) error {
+func installBinary(target string, upgrade bool, backupDir string) error {
 	source, err := os.Executable()
 	if err != nil {
 		return err
@@ -216,7 +233,24 @@ func installBinary(target string) error {
 		if sha256.Sum256(installed) == sha256.Sum256(sourceBytes) {
 			return nil
 		}
-		return fmt.Errorf("installed binary differs; stop and reconcile active work before upgrading %s", target)
+		if !upgrade {
+			return fmt.Errorf("installed binary differs; stop and reconcile active work before upgrading %s", target)
+		}
+		old, err := os.OpenFile(filepath.Join(backupDir, "previous-outpost"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0700)
+		if err != nil {
+			return fmt.Errorf("preserve prior binary in backup: %w", err)
+		}
+		if _, err := old.Write(installed); err != nil {
+			old.Close()
+			return err
+		}
+		if err := old.Sync(); err != nil {
+			old.Close()
+			return err
+		}
+		if err := old.Close(); err != nil {
+			return err
+		}
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -240,7 +274,35 @@ func installBinary(target string) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
+	if upgrade {
+		return os.Rename(tmp.Name(), target)
+	}
 	return os.Link(tmp.Name(), target)
+}
+
+func verifyUpgradeBackup(opts installOptions) error {
+	if !filepath.IsAbs(opts.backupDir) || opts.backupDir == "" {
+		return fmt.Errorf("--upgrade requires --backup-dir with a completed private backup")
+	}
+	info, err := os.Lstat(opts.backupDir)
+	if err != nil || !info.IsDir() || info.Mode().Perm()&0077 != 0 {
+		return fmt.Errorf("upgrade backup must be an existing private directory")
+	}
+	var manifest struct {
+		StateDir      string `json:"state_dir"`
+		Config        string `json:"config"`
+		WorkspacesDir string `json:"workspaces_dir"`
+	}
+	data, err := os.ReadFile(filepath.Join(opts.backupDir, "manifest.json"))
+	if err != nil || json.Unmarshal(data, &manifest) != nil || manifest.StateDir != opts.stateDir || manifest.Config != opts.configPath || manifest.WorkspacesDir != opts.workspacesDir {
+		return fmt.Errorf("backup manifest does not match this installation")
+	}
+	for _, path := range []string{"state/outpost.sqlite", "config.json", "workspaces"} {
+		if _, err := os.Stat(filepath.Join(opts.backupDir, path)); err != nil {
+			return fmt.Errorf("backup is incomplete: %s", path)
+		}
+	}
+	return nil
 }
 
 func outpostWebActive(ctx context.Context) (bool, error) {

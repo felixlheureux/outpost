@@ -1,10 +1,79 @@
 package cli
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestUpgradeRequiresMatchingBackupAndPreservesPriorBinary(t *testing.T) {
+	root := t.TempDir()
+	backup := filepath.Join(root, "backup")
+	if err := os.Mkdir(backup, 0700); err != nil {
+		t.Fatal(err)
+	}
+	opts := installOptions{
+		stateDir: filepath.Join(root, "state"), configPath: filepath.Join(root, "config.json"),
+		workspacesDir: filepath.Join(root, "workspaces"), backupDir: backup,
+	}
+	manifest, _ := json.Marshal(map[string]string{"state_dir": opts.stateDir, "config": opts.configPath, "workspaces_dir": opts.workspacesDir})
+	if err := os.WriteFile(filepath.Join(backup, "manifest.json"), manifest, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyUpgradeBackup(opts); err == nil {
+		t.Fatal("accepted incomplete backup")
+	}
+	if err := os.Mkdir(filepath.Join(backup, "state"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"state/outpost.sqlite", "config.json"} {
+		if err := os.WriteFile(filepath.Join(backup, path), []byte("fixture"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(backup, "workspaces"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyUpgradeBackup(opts); err != nil {
+		t.Fatal(err)
+	}
+	opts.stateDir = "different"
+	if err := verifyUpgradeBackup(opts); err == nil {
+		t.Fatal("accepted a backup for another state directory")
+	}
+	target := filepath.Join(root, "outpost")
+	prior := []byte("prior binary")
+	if err := os.WriteFile(target, prior, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := installBinary(target, false, backup); err == nil {
+		t.Fatal("replaced a differing binary without upgrade")
+	}
+	if err := installBinary(target, true, backup); err != nil {
+		t.Fatal(err)
+	}
+	gotPrior, err := os.ReadFile(filepath.Join(backup, "previous-outpost"))
+	if err != nil || string(gotPrior) != string(prior) {
+		t.Fatalf("preserved prior binary = %q, %v", gotPrior, err)
+	}
+	installed, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourcePath, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := os.ReadFile(sourcePath)
+	if err != nil || sha256.Sum256(installed) != sha256.Sum256(source) {
+		t.Fatalf("installed binary differs from source: %v", err)
+	}
+	if err := installBinary(target, true, backup); err != nil {
+		t.Fatalf("idempotent replay failed: %v", err)
+	}
+}
 
 func TestServeCutoverReceiptSurvivesRetry(t *testing.T) {
 	dir := t.TempDir()
