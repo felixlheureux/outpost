@@ -17,7 +17,7 @@ The initial automated package path targets Debian/Ubuntu-family Linux with syste
 
 ### 1. Obtain the executable
 
-After a release is published, download its `scripts/install.sh` bootstrap from the matching tag and run it as the service user. It selects `outpost-linux-amd64` or `outpost-linux-arm64`, verifies the matching `.sha256` asset, then invokes the canonical installer. The bootstrap also accepts an explicitly supplied locally built binary.
+After a release is published, download its `scripts/install.sh` bootstrap from the matching tag and run it as the service user. It selects `outpost-linux-amd64` or `outpost-linux-arm64`, verifies the matching `.sha256` asset, then invokes the canonical installer. Use `--release vX.Y.Z-rcN` to test a named prerelease; the default uses GitHub's latest stable release. The bootstrap also accepts an explicitly supplied locally built binary.
 
 No release asset is currently published, so the download path must not be reported as working until a tag build publishes and verifies it. The canonical configuration entry point is:
 

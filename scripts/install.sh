@@ -20,6 +20,23 @@ if [ "${1:-}" = "--binary" ]; then
     exec "$outpost_binary" install "$@"
 fi
 
+outpost_release=latest
+if [ "${1:-}" = "--release" ]; then
+    if [ "$#" -lt 2 ]; then
+        echo "usage: scripts/install.sh --release TAG [install flags]" >&2
+        exit 2
+    fi
+    case "$2" in
+        v[0-9]* ) ;;
+        *) echo "--release must be a version tag" >&2; exit 2 ;;
+    esac
+    case "$2" in
+        *[!A-Za-z0-9._-]* ) echo "--release contains unsupported characters" >&2; exit 2 ;;
+    esac
+    outpost_release=$2
+    shift 2
+fi
+
 if [ "$(uname -s)" != Linux ]; then
     echo "Release bootstrap currently supports Linux" >&2
     exit 1
@@ -37,7 +54,11 @@ for command_name in curl sha256sum mktemp; do
 done
 
 outpost_asset="outpost-linux-$outpost_arch"
-outpost_url="https://github.com/felixlheureux/outpost/releases/latest/download/$outpost_asset"
+if [ "$outpost_release" = latest ]; then
+    outpost_url="https://github.com/felixlheureux/outpost/releases/latest/download/$outpost_asset"
+else
+    outpost_url="https://github.com/felixlheureux/outpost/releases/download/$outpost_release/$outpost_asset"
+fi
 outpost_tmp=$(mktemp -d)
 trap 'rm -rf "$outpost_tmp"' EXIT HUP INT TERM
 if ! curl -fsSL --retry 2 "$outpost_url" -o "$outpost_tmp/$outpost_asset"; then

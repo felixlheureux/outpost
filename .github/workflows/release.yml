@@ -41,7 +41,10 @@ jobs:
           cd dist
           sha256sum -c outpost-linux-amd64.sha256 outpost-linux-arm64.sha256 outpost-backup.py.sha256
       - name: Publish release
-        run: gh release create "$RELEASE_VERSION" dist/outpost-linux-amd64 dist/outpost-linux-amd64.sha256 dist/outpost-linux-arm64 dist/outpost-linux-arm64.sha256 dist/outpost-backup.py dist/outpost-backup.py.sha256 --verify-tag --generate-notes
+        run: |
+          flags=()
+          case "$RELEASE_VERSION" in *-rc*|*-beta*) flags+=(--prerelease) ;; esac
+          gh release create "$RELEASE_VERSION" dist/outpost-linux-amd64 dist/outpost-linux-amd64.sha256 dist/outpost-linux-arm64 dist/outpost-linux-arm64.sha256 dist/outpost-backup.py dist/outpost-backup.py.sha256 --verify-tag --generate-notes "${flags[@]}"
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ github.ref_name }}
