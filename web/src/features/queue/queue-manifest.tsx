@@ -605,6 +605,7 @@ export function StartPanel({
   const efforts = selectedModel?.supportedReasoningEfforts ?? [];
   const selectedReasoning =
     efforts.find((item) => item.reasoningEffort === reasoning)?.reasoningEffort ??
+    efforts.find((item) => item.reasoningEffort === "medium")?.reasoningEffort ??
     selectedModel?.defaultReasoningEffort;
   const fixedIssue = selected > 0 && order.includes(selected) ? selected : next;
   const preview = useMutation({

@@ -98,7 +98,7 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
             displayName: "Fixture A",
             hidden: false,
             isDefault: true,
-            defaultReasoningEffort: "medium",
+            defaultReasoningEffort: "low",
             supportedReasoningEfforts: [{ reasoningEffort: "low" }, { reasoningEffort: "medium" }],
           },
           {
@@ -227,6 +227,7 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     await expect(page).toHaveURL(/\/work/);
     await expect(page.getByLabel("Model")).toBeEnabled();
     await expect(page.getByLabel("Reasoning")).toBeEnabled();
+    await expect(page.getByLabel("Reasoning")).toHaveText("medium");
     const workOverflow = await page.evaluate(() =>
       ["html", ".page", ".start-panel"].flatMap((selector) => {
         const element = document.querySelector(selector);
