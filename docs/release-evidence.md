@@ -1,7 +1,12 @@
 # OP-016 release evidence
 
 This map distinguishes executable/fixture checks from owner acceptance. The
-October 18, 2026 host checks used Ubuntu 26.04.1, Linux amd64, Go 1.27.2, Node
+owner accepted the remaining manual scenarios for release closeout on October
+18, 2026 and directed closure of all open feature issues. That acceptance
+changes the closeout decision; it does not turn unexecuted clean-host, second
+identity, reboot, migration, or owner-device scenarios into test evidence.
+
+The October 18, 2026 host checks used Ubuntu 26.04.1, Linux amd64, Go 1.27.2, Node
 24.21.0, npm 11.19.0, sqlc 1.31.1, and Codex CLI 0.163.0.
 The host's private Outpost service served revision `fff3c03` before release packaging. On October 18,
 the published `v0.1.0-rc1` amd64 asset was downloaded, its checksum passed, and the installer
@@ -66,9 +71,9 @@ complete owner phone/device control and clean-host acceptance remain unverified.
 | AC-53–60 | `internal/projectsetup/setup_test.go`, `internal/projectsetup/existing_test.go`, `web/e2e/onboarding.spec.ts`; the opt-in real GitHub test passed against the private disposable repository, including managed clone, source observation, `.git` replay, and advanced existing-checkout registration. One actual managed host clone was retained and recovered from `source_pending` to `ready`. On October 18, 2026, the private second repository `felixlheureux/outpost-owner-acceptance-2026` was added through the installed Outpost URL setup, producing a distinct ready managed checkout and initializing an empty planning queue without changing its main branch. Repeating the URL with different case and a `.git` suffix reused the same project without cloning again. The live A/B coding-slot transfer recorded above rejected B with `slot_busy` while A was active, then ran B after A settled; browsing A continued to identify B as the global active project. | Empty-state onboarding and complete owner-device checks remain outstanding; clean-host acceptance remains unverified. |
 | AC-61–66 | `make release VERSION=v0.1.0-rc1` built amd64/arm64 binaries with matching checksums; both binary hashes stayed identical across two local builds, and the amd64 binary executed and reported version. Clean GitHub Actions builds for main revision `15c0fd0`, tag `v0.1.0-rc3`, tag `v0.1.0-rc4`, and the final `v0.1.0-rc5` tag passed source generation, Go/frontend checks, browser smoke, and release packaging. The published prerelease has amd64/arm64 binaries, checksums, and the backup utility. `internal/cli/prerequisites_test.go` checks dependency paths. The `v0.1.0-rc3`, `v0.1.0-rc4`, and `v0.1.0-rc5` amd64 assets were installed on the designated host after checksum verification and private backups; rc3 was reinstalled unchanged and retained two projects. An unavailable Codex PATH stopped an earlier upgrade before replacement, with the old service restored. On the configured host, `GH_CONFIG_DIR` pointed at an empty private directory made `outpost doctor --repo` exit nonzero with GitHub and repository access remedies. A fresh Ubuntu 26.04 container correctly refused root installation and reported missing systemd for an ordinary user without claiming readiness. | Separate clean-host installation, arm64 execution, missing-auth path from a clean host, and the final URL from a fresh install remain unverified. |
 
-The local release build alone does not satisfy OP-016. The owner designated the
-current host as the deployment target; a separate clean-host install is not a
-deployment prerequisite for this run and remains unverified. Do not label
+The owner designated the current host as the deployment target and accepted
+the remaining manual checks for release closeout. A separate clean-host install
+was not a deployment prerequisite and remains unverified. Do not label
 other missing account/device, migration, or reporting evidence as verified.
 The backup contains private source/state and
 must remain outside the repository and release assets.

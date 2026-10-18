@@ -41,7 +41,7 @@ Project switching changes what you browse, while the running assignment stays pi
 
 ## Project status
 
-Outpost is in active development. The source build, local preview, repository onboarding, Queue, Work, History, Codex worker, validation, and delivery paths are implemented. The [v0.1.0-rc5 prerelease](https://github.com/felixlheureux/outpost/releases/tag/v0.1.0-rc5) provides checksum-protected Linux assets and is deployed on the configured host. A separate clean-host install and some owner-device controls remain unverified; see [installation status](INSTALL.md) and [OP-016](https://github.com/felixlheureux/outpost/issues/16). GitHub Issues hold current task requirements; files under [`tasks/`](tasks/) are planning snapshots.
+Outpost is in active development. The source build, local preview, repository onboarding, Queue, Work, History, Codex worker, validation, and delivery paths are implemented. The [v0.1.0-rc5 prerelease](https://github.com/felixlheureux/outpost/releases/tag/v0.1.0-rc5) provides checksum-protected Linux assets and is deployed on the configured host. The owner accepted the remaining manual scenarios for closeout; a separate clean-host install and some owner-device controls were not independently executed. See [installation status](INSTALL.md) and [release evidence](docs/release-evidence.md). GitHub Issues hold current task requirements; files under [`tasks/`](tasks/) are planning snapshots.
 
 ## Architecture and contributing
 

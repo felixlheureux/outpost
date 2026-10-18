@@ -39,7 +39,8 @@ not prove arm64 execution or a clean-host install.
 
 The [v0.1.0-rc5](https://github.com/felixlheureux/outpost/releases/tag/v0.1.0-rc5)
 asset has been installed on the configured host; a separate clean-host install
-and some owner-device controls remain unverified. See the current
+and some owner-device controls were not independently executed. The owner
+accepted those manual scenarios for release closeout. See the current
 [release evidence](release-evidence.md) and [installation guide](../INSTALL.md).
 
 `--state-dir /absolute/private/path` is a persistent flag for migrate/serve. State

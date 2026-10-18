@@ -1,6 +1,6 @@
 # Install and onboard Outpost
 
-**Status:** The `v0.1.0-rc5` prerelease has Linux amd64/arm64 binaries and checksums. Its bootstrap installed the verified amd64 asset on the configured host and confirmed the private dashboard. A separate clean-host install remains unverified; the configured host is the deployment target for this release.
+**Status:** The `v0.1.0-rc5` prerelease has Linux amd64/arm64 binaries and checksums. Its bootstrap installed the verified amd64 asset on the configured host and confirmed the private dashboard. The owner accepted the remaining manual checks for release closeout. A separate clean-host install was not executed; the configured host is the deployment target for this release.
 
 ## Choose release installation or source build
 
