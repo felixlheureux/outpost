@@ -238,6 +238,7 @@ test("activity reconnect preserves the instructions draft and opened reader", as
   await page.setViewportSize({ width: 390, height: 700 });
   await page.goto("/work?project=p");
   await expect(page.getByRole("link", { name: "Open active work" })).toBeVisible();
+  await expect(page.locator(".run-bar-state")).toContainText("running");
   await page.getByRole("button", { name: "Finish task & stop" }).click();
   await expect(page.getByRole("button", { name: "Undo stop" })).toBeVisible();
   await page.getByRole("button", { name: "Undo stop" }).click();

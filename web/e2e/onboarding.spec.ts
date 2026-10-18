@@ -25,8 +25,9 @@ test("URL onboarding and second repository keep separate browsing context", asyn
       id: `project_${projects.length + 1}`,
       name,
       repository_url: repositoryURL,
-      setup_state: "ready",
-      setup_stage: "ready",
+      setup_state: projects.length === 1 ? "failed" : "ready",
+      setup_stage: projects.length === 1 ? "source_pending" : "ready",
+      setup_error: projects.length === 1 ? "GitHub issue sync failed" : "",
       created_at: stamp,
     };
     projects.push(project);
@@ -48,6 +49,13 @@ test("URL onboarding and second repository keep separate browsing context", asyn
   await page.route(/\/api\/v1\/projects\/project_\d+\/queue\/operations$/, (route) =>
     route.fulfill({ json: { operations: [] } }),
   );
+  await page.route("**/api/v1/projects/project_2/retry", (route) => {
+    const project = projects[1];
+    project.setup_state = "ready";
+    project.setup_stage = "ready";
+    project.setup_error = "";
+    return route.fulfill({ json: project });
+  });
   await page.goto("/");
   await page.getByLabel("GitHub repository URL").fill("https://github.com/owner/alpha");
   await page.getByRole("button", { name: "Add", exact: true }).click();
@@ -60,6 +68,9 @@ test("URL onboarding and second repository keep separate browsing context", asyn
   await dialog.getByLabel("GitHub repository").fill("https://github.com/owner/beta");
   await dialog.getByRole("button", { name: "Add repository" }).click();
   await expect(page.getByRole("button", { name: "Choose repository" })).toContainText("owner/beta");
+  await expect(page.getByText("GitHub issue sync failed")).toBeVisible();
+  await page.getByRole("button", { name: "Retry setup" }).click();
+  await expect(page.getByText("GitHub issue sync failed")).toHaveCount(0);
   await page.getByRole("button", { name: "Choose repository" }).click();
   await page.getByRole("menuitem", { name: "owner/alpha" }).click();
   await expect(page.getByRole("button", { name: "Choose repository" })).toContainText(

@@ -218,11 +218,17 @@ export function Shell({ children }: { children: ReactNode }) {
                     ? (runningProject?.name ?? bootstrap.current_run.id)
                     : "No active run"}
                 </strong>
-                <span>
+                <span className="run-bar-summary">
                   {bootstrap.current_run
                     ? `${bootstrap.current_run.state} · worker ${bootstrap.current_run.liveness}${bootstrap.current_run.stop_requested ? " · stop after task" : ""}`
                     : "The execution slot is free."}
                 </span>
+                {bootstrap.current_run && (
+                  <span className="run-bar-state">
+                    {bootstrap.current_run.state}
+                    {bootstrap.current_run.stop_requested ? " · stop after task" : ""}
+                  </span>
+                )}
               </div>
               {bootstrap.current_run && (
                 <Link

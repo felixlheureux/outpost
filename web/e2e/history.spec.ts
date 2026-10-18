@@ -204,6 +204,7 @@ test("history keeps old attempts read only and exposes recovery evidence", async
       },
     }),
   );
+  await page.setViewportSize({ width: 320, height: 700 });
   await page.goto("/history?project=p");
   await expect(page.getByText("provider session unavailable")).toBeVisible();
   await page.getByRole("button", { name: "View details" }).click();
@@ -220,4 +221,7 @@ test("history keeps old attempts read only and exposes recovery evidence", async
   await page.getByRole("button", { name: "Connection and storage" }).click();
   await expect(page.getByText(/Tailscale: node matches configuration/)).toBeVisible();
   await expect(page.getByText(/Retained output: 1 artifacts/)).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+  ).toBeLessThanOrEqual(1);
 });
