@@ -74,6 +74,130 @@ export const projectsQuery = queryOptions({
   queryFn: () => request("/projects", projects),
 });
 
+const historyAttempt = z.object({
+  id: z.string(),
+  ordinal: z.number(),
+  phase: z.string(),
+  outcome: z.string(),
+  provider_state: z.string(),
+  failure_code: z.string(),
+  model: z.string(),
+  reasoning: z.string(),
+  sandbox: z.string(),
+  approval_policy: z.string(),
+  created_at: z.string(),
+  settled_at: z.string(),
+});
+const historyAssignment = z.object({
+  id: z.string(),
+  issue_number: z.number(),
+  title: z.string(),
+  issue_digest: z.string(),
+  issue_revision: z.number(),
+  queue_sha: z.string(),
+  baseline_head: z.string(),
+  branch: z.string(),
+  state: z.string(),
+  created_at: z.string(),
+  settled_at: z.string(),
+  attempts: z.array(historyAttempt),
+});
+const historyRun = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  state: z.string(),
+  reservation_state: z.string(),
+  launch_observation: z.string(),
+  schedule_outcome: z.string(),
+  schedule_reason: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  successful_count: z.number(),
+  task_limit: z.number(),
+  assignment_count: z.number(),
+  assignments: z.array(historyAssignment),
+});
+export type HistoryRun = z.infer<typeof historyRun>;
+export function historyQuery(projectID: string, offset = 0) {
+  return queryOptions({
+    queryKey: ["history", projectID, offset],
+    queryFn: () =>
+      request(
+        `/history?project=${encodeURIComponent(projectID)}&offset=${offset}`,
+        z.object({ runs: z.array(historyRun), next_offset: z.number() }),
+      ),
+    enabled: Boolean(projectID),
+  });
+}
+export function historyDetailQuery(runID: string) {
+  return queryOptions({
+    queryKey: ["history", "run", runID],
+    queryFn: () => request(`/history/${encodeURIComponent(runID)}`, historyRun),
+    enabled: Boolean(runID),
+  });
+}
+const historyArtifacts = z.object({
+  artifacts: z.array(
+    z.object({
+      id: z.string(),
+      attempt_id: z.string(),
+      bytes_written: z.number(),
+      truncated: z.boolean(),
+      retention_state: z.string(),
+      removed_at: z.string(),
+    }),
+  ),
+});
+export function historyArtifactsQuery(runID: string) {
+  return queryOptions({
+    queryKey: ["history", "run", runID, "artifacts"],
+    queryFn: () => request(`/history/${encodeURIComponent(runID)}/artifacts`, historyArtifacts),
+    enabled: Boolean(runID),
+  });
+}
+export function removeArtifact(id: string) {
+  return request(`/artifacts/${encodeURIComponent(id)}`, z.object({ state: z.string() }), {
+    method: "DELETE",
+  });
+}
+export function retryReports(runID: string) {
+  return request(
+    `/runs/${encodeURIComponent(runID)}/reports/retry`,
+    z.object({ settled: z.number() }),
+    { method: "POST" },
+  );
+}
+const diagnostics = z.object({
+  version: z.string(),
+  observed_at: z.string(),
+  mode: z.string(),
+  private_url: z.string(),
+  allowed_identity: z.string(),
+  tailscale: z.string(),
+  serve_route: z.string(),
+  web_service: z.string(),
+  github: z.string(),
+  provider: z.string(),
+  provider_version: z.string().optional(),
+  state_access: z.boolean().optional(),
+  disk_available_bytes: z.number().optional(),
+  project_setup: z.string().optional(),
+  issue_source: z.string().optional(),
+  queue_source: z.string().optional(),
+  source_observed_at: z.string().optional(),
+  artifacts: z
+    .object({ count: z.number(), recorded_bytes: z.number(), truncated_count: z.number() })
+    .optional(),
+});
+export function diagnosticsQuery(projectID: string) {
+  return queryOptions({
+    queryKey: ["diagnostics", projectID],
+    queryFn: () => request(`/diagnostics?project=${encodeURIComponent(projectID)}`, diagnostics),
+    staleTime: 10_000,
+    retry: false,
+  });
+}
+
 const agentCapabilities = z.object({
   version: z.string(),
   models: z.array(

@@ -94,6 +94,9 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 			if c.Request().Method == http.MethodPost && strings.HasPrefix(c.Request().URL.Path, "/api/v1/projects/") && strings.HasSuffix(c.Request().URL.Path, "/runs") {
 				timeout = time.Minute
 			}
+			if c.Request().Method == http.MethodPost && strings.HasSuffix(c.Request().URL.Path, "/reports/retry") {
+				timeout = time.Minute
+			}
 			if c.Request().Method == http.MethodGet && c.Request().URL.Path == "/api/v1/agent/capabilities" {
 				timeout = 20 * time.Second
 			}
@@ -177,6 +180,8 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 	})
 	registerActivityRoutes(e, db, stateDir, activitySlots)
 	registerWorkRoutes(e, db, stateDir)
+	registerHistoryRoutes(e, db)
+	registerDiagnosticsRoute(e, db, access, stateDir, version)
 	registerStartRoute(e, db, stateDir, access != nil, logger)
 	e.GET("/api/v1/projects", func(c *echo.Context) error {
 		rows, err := db.Queries.ListProjects(c.Request().Context())

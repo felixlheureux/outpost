@@ -115,8 +115,9 @@ the navigation into a top strip. Honor reduced motion and visible focus.
 ## Next integration points
 
 OP-012 connects runner-verified checks to Git delivery and local completion.
-See `docs/delivery.md` for effect and reporting receipts. OP-013 can use these
-receipts for History and recovery projections.
+See `docs/delivery.md` for effect and reporting receipts. OP-013 projects these
+receipts into History, contextual diagnostics, and current recovery guidance;
+see `docs/history.md`. OP-014 can use the same paths for phone acceptance.
 The Work activity stream reads real SQLite cursors and provider artifacts;
 `docs/activity.md` defines its reset, preview and retention rules. The private
 Serve cutover, owner-device acceptance and real GitHub planning-branch write

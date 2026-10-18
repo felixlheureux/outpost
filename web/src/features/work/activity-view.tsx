@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import {
   activityEvent,
   activityPageQuery,
   artifactPreviewQuery,
+  bootstrapQuery,
   checkOutputQuery,
   decideReview,
   olderActivity,
@@ -63,6 +65,7 @@ export function ActivityView({ runID }: { runID: string }) {
   const client = useQueryClient();
   const page = useQuery(activityPageQuery(runID));
   const work = useQuery(workOverviewQuery(runID));
+  const bootstrap = useQuery({ ...bootstrapQuery, refetchInterval: 5000 });
   const [connection, setConnection] = useState<"connecting" | "connected" | "reconnecting">(
     "connecting",
   );
@@ -240,6 +243,13 @@ export function ActivityView({ runID }: { runID: string }) {
     state?.controls.some((item) => item.action === "interrupt" && item.state !== "rejected"),
   );
   const pendingReceipt = state?.messages.find((item) => item.id === pendingID);
+  const workerLiveness =
+    bootstrap.data?.current_run?.id === runID ? bootstrap.data.current_run.liveness : "unknown";
+  const attention =
+    state?.schedule_outcome && state.schedule_outcome !== "active"
+      ? state.schedule_reason || `Run ${state.schedule_outcome}`
+      : state?.provider_failure_code || (canContinue ? `Provider ${state.provider_state}` : "");
+  const attentionKind = attention.toLowerCase();
 
   async function submitInstructions() {
     if (!state || !draft.trim() || busy || pendingID) return;
@@ -549,22 +559,71 @@ export function ActivityView({ runID }: { runID: string }) {
               <ChecksPanel runID={runID} checks={work.data?.checks ?? []} />
             </TabsContent>
           </Tabs>
-          {canContinue ? (
+          {attention ? (
             <div className="work-recovery" role="status">
-              <strong>
-                {state?.provider_state === "interrupted"
-                  ? "Provider interrupted"
-                  : state?.provider_state === "unknown"
-                    ? "Provider outcome unknown"
-                    : "Provider stopped"}
-              </strong>
+              <strong>Work needs attention · {attention}</strong>
               <p>
-                {state?.provider_failure_code ? `${state.provider_failure_code}. ` : ""}The pinned
-                assignment, checkout changes, and earlier receipts remain available.
-                {canResume
-                  ? " The saved session can be resumed."
-                  : " No saved session was recorded; choose a fresh conversation."}
+                Worker observation: {workerLiveness}. The pinned assignment, checkout changes, and
+                recorded receipts remain available. An unavailable observation does not prove the
+                worker stopped.
               </p>
+              {canContinue ? (
+                <p>
+                  {canResume
+                    ? "Resume the saved session or choose a fresh conversation below."
+                    : "No saved session was recorded. Choose a fresh conversation below."}{" "}
+                  Queue processing remains stopped until this assignment is settled.
+                </p>
+              ) : null}
+              {state?.provider_failure_code?.toLowerCase().includes("auth") ? (
+                <p>
+                  Sign in to Codex as the service user, then inspect the provider receipt before
+                  continuing.
+                </p>
+              ) : null}
+              {attentionKind.includes("queue") || attentionKind.includes("source") ? (
+                <p>
+                  Open Queue to inspect the current source and sync it. The active assignment
+                  remains pinned.
+                </p>
+              ) : null}
+              {attentionKind.includes("baseline") || attentionKind.includes("checkout") ? (
+                <p>
+                  Inspect Changes and the recorded baseline before starting another assignment.
+                  Preserve local work while reconciling the checkout.
+                </p>
+              ) : null}
+              {attentionKind.includes("child") || attentionKind.includes("process") ? (
+                <p>
+                  A recorded process may still own the checkout. Wait for a verified terminal
+                  observation or use the scoped stop action in Work.
+                </p>
+              ) : null}
+              {state?.attempt_phase === "validating" ||
+              state?.checks.some((check) => check.status === "failed") ? (
+                <p>
+                  Open the failed check output in Checks. Repair continues against this pinned
+                  assignment.
+                </p>
+              ) : null}
+              {state?.delivery &&
+              ["unknown", "failed", "pending"].includes(state.delivery.state) ? (
+                <p>
+                  Delivery needs reconciliation against the recorded candidate before another
+                  effect.
+                </p>
+              ) : null}
+              {state?.report && state.report.state !== "settled" ? (
+                <p>GitHub reporting can be retried separately after local completion.</p>
+              ) : null}
+              {attentionKind.includes("queue") || attentionKind.includes("source") ? (
+                <Link to="/" search={{ project: state?.project_id }}>
+                  Open Queue
+                </Link>
+              ) : null}
+              <Link to="/history" search={{ project: state?.project_id }}>
+                Open run history
+              </Link>
             </div>
           ) : null}
           <div className="activity-draft">
