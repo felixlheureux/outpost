@@ -91,6 +91,18 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await page.getByRole("button", { name: /#7 Keep the queue readable/ }).click();
+    const footerEdges = await page.locator(".queue-inspector").evaluate((inspector) => {
+      const panel = inspector.getBoundingClientRect();
+      const footer = inspector.querySelector(".queue-inspector-actions")?.getBoundingClientRect();
+      return footer
+        ? { right: panel.right - footer.right, bottom: panel.bottom - footer.bottom }
+        : null;
+    });
+    expect(footerEdges, `inspector footer at ${width}px`).not.toBeNull();
+    expect(footerEdges?.right).toBeLessThanOrEqual(2);
+    expect(footerEdges?.bottom).toBeLessThanOrEqual(2);
+    if (width === 1440 || width === 390)
+      await page.screenshot({ path: `/tmp/outpost-inspector-${width}.png`, fullPage: true });
     await expect(page.getByLabel("Model")).toHaveCount(0);
     await page.locator(".queue-source-details summary").click();
     const overflow = await page.evaluate(() => {

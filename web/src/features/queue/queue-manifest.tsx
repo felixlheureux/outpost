@@ -310,85 +310,94 @@ export function QueueManifest({
         </div>
         <aside className="queue-inspector" aria-label="Task inspector">
           {selected === null ? (
-            <p className="queue-empty">Select a task to inspect its source and queue actions.</p>
+            <div className="queue-inspector-body">
+              <p className="queue-empty">Select a task to inspect its source and queue actions.</p>
+            </div>
           ) : (
             <>
-              <div className="queue-inspector-heading">
-                <span className="eyebrow">
-                  {selectedPosition >= 0 ? `Queued · position ${selectedPosition + 1}` : "Inbox"}
-                </span>
-                <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
-                  Close details
-                </Button>
-              </div>
-              <h2>
-                #{selected} {selectedIssue?.title ?? "Issue not observed"}
-              </h2>
-              <p className="queue-status">
-                {blocker(selectedIssue, byNumber) ??
-                  (selected === next ? "Next eligible" : "Eligible")}
-              </p>
-              {selectedIssue ? (
-                <>
-                  <p>
-                    {selectedIssue.requirements?.outcome ||
-                      selectedIssue.body ||
-                      selectedIssue.title}
-                  </p>
-                  {Boolean(selectedIssue.requirements?.criteria.length) && (
-                    <>
-                      <h3>Acceptance criteria</h3>
-                      <ul>
-                        {selectedIssue.requirements?.criteria.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  {Boolean(selectedIssue.requirements?.settings.depends_on?.length) && (
-                    <>
-                      <h3>Dependencies</h3>
-                      <p>
-                        {selectedIssue.requirements?.settings.depends_on?.map((number) => (
-                          <a key={number} href={issueURL(number)} target="_blank" rel="noreferrer">
-                            #{number}{" "}
-                          </a>
-                        ))}
-                      </p>
-                    </>
-                  )}
-                  <h3>Effective policy</h3>
-                  <dl className="queue-policy">
-                    <div>
-                      <dt>Checks</dt>
-                      <dd>
-                        {selectedIssue.requirements?.settings.check_profile === "inherit" ||
-                        !selectedIssue.requirements
-                          ? "Project default"
-                          : selectedIssue.requirements.settings.check_profile}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Delivery</dt>
-                      <dd>
-                        {selectedIssue.requirements?.settings.delivery === "inherit" ||
-                        !selectedIssue.requirements
-                          ? "Project default"
-                          : selectedIssue.requirements.settings.delivery}
-                      </dd>
-                    </div>
-                  </dl>
-                  <p className="queue-hint">Effective values are checked at admission.</p>
-                  <p className="queue-hint">
-                    Changes to an active issue apply to a future attempt. Use Work for live
-                    direction.
-                  </p>
-                </>
-              ) : (
-                <p>
-                  Sync issues to inspect the source. This queue reference remains in the manifest.
+              <div className="queue-inspector-body">
+                <div className="queue-inspector-heading">
+                  <span className="eyebrow">
+                    {selectedPosition >= 0 ? `Queued · position ${selectedPosition + 1}` : "Inbox"}
+                  </span>
+                  <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
+                    Close details
+                  </Button>
+                </div>
+                <h2>
+                  #{selected} {selectedIssue?.title ?? "Issue not observed"}
+                </h2>
+                <p className="queue-status">
+                  {blocker(selectedIssue, byNumber) ??
+                    (selected === next ? "Next eligible" : "Eligible")}
                 </p>
-              )}
+                {selectedIssue ? (
+                  <>
+                    <p>
+                      {selectedIssue.requirements?.outcome ||
+                        selectedIssue.body ||
+                        selectedIssue.title}
+                    </p>
+                    {Boolean(selectedIssue.requirements?.criteria.length) && (
+                      <>
+                        <h3>Acceptance criteria</h3>
+                        <ul>
+                          {selectedIssue.requirements?.criteria.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    {Boolean(selectedIssue.requirements?.settings.depends_on?.length) && (
+                      <>
+                        <h3>Dependencies</h3>
+                        <p>
+                          {selectedIssue.requirements?.settings.depends_on?.map((number) => (
+                            <a
+                              key={number}
+                              href={issueURL(number)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              #{number}{" "}
+                            </a>
+                          ))}
+                        </p>
+                      </>
+                    )}
+                    <h3>Effective policy</h3>
+                    <dl className="queue-policy">
+                      <div>
+                        <dt>Checks</dt>
+                        <dd>
+                          {selectedIssue.requirements?.settings.check_profile === "inherit" ||
+                          !selectedIssue.requirements
+                            ? "Project default"
+                            : selectedIssue.requirements.settings.check_profile}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Delivery</dt>
+                        <dd>
+                          {selectedIssue.requirements?.settings.delivery === "inherit" ||
+                          !selectedIssue.requirements
+                            ? "Project default"
+                            : selectedIssue.requirements.settings.delivery}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="queue-hint">Effective values are checked at admission.</p>
+                    <p className="queue-hint">
+                      Changes to an active issue apply to a future attempt. Use Work for live
+                      direction.
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    Sync issues to inspect the source. This queue reference remains in the manifest.
+                  </p>
+                )}
+              </div>
               <div className="queue-inspector-actions">
                 {selectedIssue && (
                   <Button

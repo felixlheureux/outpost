@@ -610,11 +610,20 @@ nav {
   color: var(--muted-foreground);
 }
 .queue-inspector {
-  padding: 18px;
+  display: flex;
+  flex-direction: column;
   overflow-wrap: anywhere;
   max-height: min(620px, 65dvh);
-  overflow-y: auto;
+  overflow: hidden;
   background: color-mix(in srgb, var(--card) 86%, var(--background));
+}
+.queue-inspector-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px;
+}
+.queue-inspector-body > .queue-empty {
+  padding: 0;
 }
 .queue-inspector-heading > .eyebrow {
   min-width: 0;
@@ -666,11 +675,8 @@ nav {
   margin-top: 18px;
 }
 .queue-inspector-actions {
-  position: sticky;
-  bottom: -18px;
-  margin-right: -18px;
-  margin-bottom: -18px;
-  margin-left: -18px;
+  flex: none;
+  margin-top: 0;
   padding: 12px 18px;
   border-top: 1px solid var(--border);
   background: var(--card);
@@ -851,10 +857,9 @@ nav {
   }
   .queue-inspector {
     max-height: none;
-    overflow-y: visible;
   }
-  .queue-inspector-actions {
-    position: static;
+  .queue-inspector-body {
+    overflow: visible;
   }
 }
 .issue-source-heading {
