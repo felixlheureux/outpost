@@ -95,6 +95,23 @@ type CheckReceipt struct {
 	Truncated       int64
 }
 
+type DeliveryReceipt struct {
+	ID              string
+	AssignmentID    string
+	Policy          string
+	CandidateDigest string
+	BaselineHead    string
+	Branch          string
+	Upstream        string
+	RemoteDigest    string
+	PathsJson       string
+	CommitSha       string
+	State           string
+	Reason          string
+	CreatedAt       string
+	UpdatedAt       string
+}
+
 type ExecutionGeneration struct {
 	ProjectID    string
 	IssueNumber  int64
@@ -102,6 +119,17 @@ type ExecutionGeneration struct {
 	State        string
 	AssignmentID sql.NullString
 	BaselineHead string
+}
+
+type GithubReport struct {
+	ID           string
+	AssignmentID string
+	Marker       string
+	State        string
+	CommentID    int64
+	CloseIssue   int64
+	Reason       string
+	UpdatedAt    string
 }
 
 type IssueOperation struct {
@@ -213,6 +241,14 @@ type QueueSource struct {
 	State      string
 	FetchedAt  string
 	LastError  string
+}
+
+type ReviewDecision struct {
+	AssignmentID    string
+	CandidateDigest string
+	Decision        string
+	Feedback        string
+	DecidedAt       string
 }
 
 type Run struct {

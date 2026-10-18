@@ -9,7 +9,8 @@ queue projection with durable edit receipts, the Queue/Inbox workspace, a
 durable scheduler with fresh-source admission and an eligibility preview, and
 a Codex App Server adapter with provider attempt and live control receipts, and
 runner-owned local validation with private check artifacts and bounded repair.
-The browser Start control remains disabled until Git delivery is connected.
+Git delivery receipts, independent GitHub reporting, and a private browser Start
+path now connect those checks to local completion.
 The complete behavior contract remains the technical specification.
 
 ## Follow a request
@@ -37,6 +38,7 @@ or service layers for every table in advance.
 | `internal/codexadapter` | Pinned Codex App Server stdio protocol, capability discovery, session controls and structured handoff |
 | `internal/providerwork` | Immutable prompt, private bounded event artifact and owned provider receipt transitions |
 | `internal/validation` | Captured check plans, candidate identity, owned child processes, terminal reconciliation and repair evidence |
+| `internal/delivery` | Candidate-bound local/commit/push reconciliation and GitHub result reporting |
 | `activity_events`, `activity_artifacts` | Bounded notifications and allowlisted private output manifest; see `docs/activity.md` |
 | `work_messages`, `work_controls` | Scoped live directions, stop and continuation receipts; see `docs/work.md` |
 | `internal/supervisor`, `internal/worker` | Recorded worker units, process identity and workspace exclusion |
@@ -112,8 +114,9 @@ the navigation into a top strip. Honor reduced motion and visible focus.
 
 ## Next integration points
 
-OP-012 owns Git delivery after runner-verified checks. The browser Start
-control remains disabled until that completion boundary is connected.
+OP-012 connects runner-verified checks to Git delivery and local completion.
+See `docs/delivery.md` for effect and reporting receipts. OP-013 can use these
+receipts for History and recovery projections.
 The Work activity stream reads real SQLite cursors and provider artifacts;
 `docs/activity.md` defines its reset, preview and retention rules. The private
 Serve cutover, owner-device acceptance and real GitHub planning-branch write

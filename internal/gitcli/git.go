@@ -3,6 +3,8 @@ package gitcli
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"strings"
 
 	"github.com/felixlheureux/outpost/internal/hostcmd"
@@ -17,6 +19,26 @@ func Version(ctx context.Context) (string, error) {
 func Head(ctx context.Context, dir string) (string, error) {
 	b, err := hostcmd.Run(ctx, dir, "git", nil, "rev-parse", "--verify", "HEAD")
 	return strings.TrimSpace(string(b)), err
+}
+
+func Upstream(ctx context.Context, dir string) string {
+	b, err := hostcmd.Run(ctx, dir, "git", nil, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func RemoteDigest(ctx context.Context, dir, upstream string) string {
+	remote, _, ok := strings.Cut(upstream, "/")
+	if !ok {
+		return ""
+	}
+	b, err := hostcmd.Run(ctx, dir, "git", nil, "remote", "get-url", remote)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(strings.TrimSpace(string(b)))))
 }
 
 // Baseline captures the current branch and every staged, unstaged, and

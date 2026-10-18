@@ -200,6 +200,7 @@ const workOverview = z.object({
   project_id: z.string(),
   run_state: z.string(),
   assignment_id: z.string(),
+  review_candidate_digest: z.string().optional(),
   assignment_started_at: z.string().optional(),
   attempt_id: z.string(),
   attempt_phase: z.string(),
@@ -253,6 +254,20 @@ const workOverview = z.object({
       truncated: z.boolean(),
     }),
   ),
+  delivery: z
+    .object({
+      id: z.string(),
+      policy: z.string(),
+      candidate_digest: z.string(),
+      branch: z.string(),
+      upstream: z.string(),
+      commit_sha: z.string(),
+      state: z.string(),
+      reason: z.string(),
+    })
+    .nullable()
+    .optional(),
+  report: z.object({ id: z.string(), state: z.string(), reason: z.string() }).nullable().optional(),
   attempts: z
     .array(
       z.object({
@@ -268,6 +283,29 @@ const workOverview = z.object({
     .optional(),
 });
 export type WorkOverview = z.infer<typeof workOverview>;
+const reviewDecision = z.object({
+  assignment_id: z.string(),
+  candidate_digest: z.string(),
+  decision: z.enum(["approved", "rejected"]),
+});
+export function decideReview(
+  runID: string,
+  assignmentID: string,
+  candidate: string,
+  decision: "approved" | "rejected",
+  feedback: string,
+) {
+  return request(`/runs/${encodeURIComponent(runID)}/review`, reviewDecision, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      assignment_id: assignmentID,
+      candidate_digest: candidate,
+      decision,
+      feedback,
+    }),
+  });
+}
 const checkOutput = z.object({ id: z.string(), output: z.string(), truncated: z.boolean() });
 export function checkOutputQuery(runID: string, receiptID: string) {
   return queryOptions({
@@ -519,6 +557,31 @@ export function previewAdmission(projectID: string, mode: "follow" | "fixed", se
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode, selected }),
+  });
+}
+
+const startedRun = z.object({
+  run_id: z.string(),
+  state: z.enum(["reserved", "launch_unknown", "completed"]),
+});
+export type StartRunInput = {
+  mode: "follow" | "fixed";
+  selected: number;
+  model: string;
+  reasoning: string;
+  delivery: "local_changes" | "commit" | "push";
+  review: "none" | "required";
+  close_issue: boolean;
+  task_limit: number;
+  deadline_at: string;
+  instructions: string;
+  request_key: string;
+};
+export function startRun(projectID: string, input: StartRunInput) {
+  return request(`/projects/${encodeURIComponent(projectID)}/runs`, startedRun, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
   });
 }
 

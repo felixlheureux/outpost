@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/felixlheureux/outpost/internal/codexadapter"
+	"github.com/felixlheureux/outpost/internal/delivery"
 	"github.com/felixlheureux/outpost/internal/providerwork"
 	"github.com/felixlheureux/outpost/internal/scheduler"
 	"github.com/felixlheureux/outpost/internal/store"
@@ -75,6 +76,7 @@ func addWorker(root *cobra.Command, stateDir *string) {
 						return "", "", binaryErr
 					}
 					checks := validation.Runner{DB: db, StateDir: *stateDir, Workspace: run.WorkspacePath, Executable: binary, Lock: lock}
+				validationCycle:
 					for cycle := 0; ; cycle++ {
 						result, runErr := checks.Run(ctx, a, schedule)
 						if runErr != nil {
@@ -87,7 +89,56 @@ func addWorker(root *cobra.Command, stateDir *string) {
 							if err := db.AdvanceAttemptPhase(ctx, a.ID, "validating", "closing"); err != nil {
 								return "", "", err
 							}
-							return "", "", fmt.Errorf("validation passed for candidate %s; Git delivery has not settled", result.Candidate)
+							_, review, err := delivery.Policy(a, schedule)
+							if err != nil {
+								return "", "", err
+							}
+							if review == "required" {
+								if err := db.AdvanceAttemptPhase(ctx, a.ID, "closing", "awaiting_review"); err != nil {
+									return "", "", err
+								}
+								for {
+									decision, feedback, readErr := db.ReviewDecision(ctx, a.ID, result.Candidate)
+									if readErr == nil {
+										if decision == "approved" {
+											break
+										}
+										if cycle >= policy.CheckProfile.RepairLimit-1 {
+											return "", "", fmt.Errorf("review repair limit reached")
+										}
+										thread, e := db.BeginReviewRepair(ctx, a.ID, result.Candidate)
+										if e != nil {
+											return "", "", e
+										}
+										instruction := "Reviewer rejected the checked candidate. Revise the same pinned assignment and address the review feedback.\n" + feedback
+										if _, e = providerwork.ExecuteContinuation(ctx, db, *stateDir, codexPath, a, schedule, run.WorkspacePath, thread, instruction); e != nil {
+											return "", "", e
+										}
+										continue validationCycle
+									}
+									if !errors.Is(readErr, sql.ErrNoRows) {
+										return "", "", readErr
+									}
+									select {
+									case <-ctx.Done():
+										return "", "", ctx.Err()
+									case <-time.After(time.Second):
+									}
+								}
+								if err := db.AdvanceAttemptPhase(ctx, a.ID, "awaiting_review", "delivering"); err != nil {
+									return "", "", err
+								}
+							} else if err := db.AdvanceAttemptPhase(ctx, a.ID, "closing", "delivering"); err != nil {
+								return "", "", err
+							}
+							delivered, err := delivery.Deliver(ctx, db, run.WorkspacePath, a, schedule, result.Candidate)
+							if err != nil {
+								return "", "", err
+							}
+							if err := db.RecordCompletionReceipt(ctx, a.ID, "delivery", delivered.Receipt.ID); err != nil {
+								return "", "", err
+							}
+							return "succeeded", delivered.Head, nil
 						}
 						if result.Repeated {
 							return "", "", fmt.Errorf("unchanged check failure: %s", result.Failure)
@@ -113,8 +164,30 @@ func addWorker(root *cobra.Command, stateDir *string) {
 						}
 					}
 				})
+				var reportPolicy struct {
+					CloseIssue bool `json:"close_issue"`
+				}
+				_ = json.Unmarshal([]byte(schedule.PolicyJSON), &reportPolicy)
+				completed, reportErr := db.UnreportedAssignments(cmd.Context(), runID)
+				if reportErr == nil {
+					for _, done := range completed {
+						if _, sendErr := delivery.Report(cmd.Context(), db, done, reportPolicy.CloseIssue, nil); sendErr != nil {
+							fmt.Fprintln(cmd.ErrOrStderr(), "GitHub result pending:", sendErr)
+						}
+					}
+				} else {
+					fmt.Fprintln(cmd.ErrOrStderr(), "GitHub report lookup:", reportErr)
+				}
 				return err
 			}()
+			if err == nil {
+				if scheduleNow, e := db.GetSchedule(cmd.Context(), runID); e == nil && scheduleNow.Outcome != "active" {
+					if e = db.CompleteWorker(cmd.Context(), runID, pid, ticks); e == nil {
+						return nil
+					}
+					err = e
+				}
+			}
 			if err != nil {
 				// Keep the worker and lock alive for explicit stop/recovery.
 				fmt.Fprintln(cmd.ErrOrStderr(), err)

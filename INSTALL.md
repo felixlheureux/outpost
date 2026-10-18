@@ -120,7 +120,7 @@ Open **http://127.0.0.1:8080** on the same machine. This is a local preview, wit
 
 `./bin/outpost doctor` checks installed Git, existing GitHub/Codex/Tailscale access, the user systemd bus, boot lingering, and the configured private Serve route. Optional `--repo https://github.com/owner/repo` checks repository read access. These checks do not install anything, prove write permissions, configure Serve, or establish worker readiness. No authentication is needed to build or view the local empty shell.
 
-Do not expose development mode through a proxy or public listener. Private `serve`, a preparation-stage `install`, read-only `status`, and a guarded `stop --run-id` are available. Worker supervision has a fixture path for acceptance testing; real coding execution awaits the provider adapter. The built binary is the installer input for OP-002. See docs/development.md for checks and docs/dependencies.md for the sign-in contract.
+Do not expose development mode through a proxy or public listener. Private `serve`, a preparation-stage `install`, read-only `status`, and a guarded `stop --run-id` are available. The owned worker can run a pinned Codex assignment through validation, selected Git delivery, and local completion. Real account and owner-device acceptance still require a configured private host journey. See docs/delivery.md for reporting and recovery. The built binary is the installer input for OP-002. See docs/development.md for checks and docs/dependencies.md for the sign-in contract.
 
 ### Manually exercise the private request boundary
 

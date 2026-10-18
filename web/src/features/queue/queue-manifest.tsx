@@ -23,11 +23,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   agentCapabilitiesQuery,
+  bootstrapQuery,
   type IssueSource,
   inspectQueueOperation,
   previewAdmission,
   projectQueueQuery,
   queueOperationsQuery,
+  startRun,
   syncProjectQueue,
   writeQueue,
 } from "@/lib/api";
@@ -513,6 +515,8 @@ export function StartPanel({
 }) {
   const contextKey = `outpost.queue.${projectID}`;
   const queue = useQuery(projectQueueQuery(projectID));
+  const bootstrap = useQuery(bootstrapQuery);
+  const queryClient = useQueryClient();
   const capabilities = useQuery(agentCapabilitiesQuery(projectID));
   const order = queue.data?.issues ?? [];
   const byNumber = new Map(issues.map((issue) => [issue.number, issue]));
@@ -534,6 +538,14 @@ export function StartPanel({
   const [instructions, setInstructions] = useState(() => saved(`${contextKey}.instructions`) ?? "");
   const [model, setModel] = useState(() => saved(`${contextKey}.model`) ?? "");
   const [reasoning, setReasoning] = useState(() => saved(`${contextKey}.reasoning`) ?? "");
+  const [delivery, setDelivery] = useState<"local_changes" | "commit" | "push">(() => {
+    const value = saved(`${contextKey}.delivery`);
+    return value === "commit" || value === "push" ? value : "local_changes";
+  });
+  const [review, setReview] = useState<"none" | "required">(() =>
+    saved(`${contextKey}.review`) === "required" ? "required" : "none",
+  );
+  const [closeIssue, setCloseIssue] = useState(() => saved(`${contextKey}.closeIssue`) === "true");
   useEffect(() => remember(`${contextKey}.scope`, scope), [contextKey, scope]);
   useEffect(() => remember(`${contextKey}.taskLimit`, String(taskLimit)), [contextKey, taskLimit]);
   useEffect(
@@ -543,6 +555,12 @@ export function StartPanel({
   useEffect(() => remember(`${contextKey}.instructions`, instructions), [contextKey, instructions]);
   useEffect(() => remember(`${contextKey}.model`, model), [contextKey, model]);
   useEffect(() => remember(`${contextKey}.reasoning`, reasoning), [contextKey, reasoning]);
+  useEffect(() => remember(`${contextKey}.delivery`, delivery), [contextKey, delivery]);
+  useEffect(() => remember(`${contextKey}.review`, review), [contextKey, review]);
+  useEffect(
+    () => remember(`${contextKey}.closeIssue`, String(closeIssue)),
+    [contextKey, closeIssue],
+  );
   const models = capabilities.data?.models ?? [];
   const selectedModel =
     models.find((item) => item.model === model) ?? models.find((item) => item.isDefault);
@@ -558,6 +576,66 @@ export function StartPanel({
   const previewCurrent =
     preview.variables?.mode === scope &&
     preview.variables.selected === (scope === "fixed" ? (fixedIssue ?? 0) : 0);
+  const start = useMutation({
+    mutationFn: () => {
+      const minutes = runtimeBudget.trim() === "" ? 0 : Number(runtimeBudget);
+      if (!Number.isInteger(minutes) || minutes < 0 || minutes > 10080) {
+        throw new Error("Runtime budget must be 1 to 10080 minutes, or blank.");
+      }
+      const selectedIssue = scope === "fixed" ? (fixedIssue ?? 0) : 0;
+      const signature = JSON.stringify({
+        scope,
+        selectedIssue,
+        model: selectedModel?.model,
+        reasoning: selectedReasoning,
+        delivery,
+        review,
+        closeIssue,
+        taskLimit,
+        minutes,
+        instructions,
+      });
+      const identityKey = `${contextKey}.startIdentity`;
+      let identity: { signature: string; requestKey: string; deadline: string } | undefined;
+      try {
+        const prior = saved(identityKey);
+        if (prior) identity = JSON.parse(prior) as typeof identity;
+      } catch {
+        /* use fresh identity */
+      }
+      if (!identity || identity.signature !== signature) {
+        identity = {
+          signature,
+          requestKey: crypto.randomUUID(),
+          deadline: minutes ? new Date(Date.now() + minutes * 60_000).toISOString() : "",
+        };
+        remember(identityKey, JSON.stringify(identity));
+      }
+      return startRun(projectID, {
+        mode: scope,
+        selected: selectedIssue,
+        model: selectedModel?.model ?? "",
+        reasoning: selectedReasoning ?? "",
+        delivery,
+        review,
+        close_issue: closeIssue,
+        task_limit: taskLimit,
+        deadline_at: identity.deadline,
+        instructions,
+        request_key: identity.requestKey,
+      });
+    },
+    onSuccess: (result) => {
+      if (result.state !== "launch_unknown") {
+        try {
+          sessionStorage.removeItem(`${contextKey}.startIdentity`);
+        } catch {
+          /* optional storage */
+        }
+      }
+      void queryClient.invalidateQueries({ queryKey: ["bootstrap"] });
+    },
+  });
   return (
     <div className="start-panel">
       <div className="start-panel-summary">
@@ -655,15 +733,38 @@ export function StartPanel({
             label="Permissions"
             value={capabilities.data ? "Workspace write · approval on request" : undefined}
           />
-          <UnavailableSetting
-            id="start-delivery"
-            label="Delivery"
-            value="Delivery not configured"
-          />
+          <div className="start-field">
+            <Label htmlFor="start-delivery">Delivery</Label>
+            <Select
+              value={delivery}
+              onValueChange={(value) => setDelivery(value as typeof delivery)}
+            >
+              <SelectTrigger id="start-delivery" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local_changes">Local changes</SelectItem>
+                <SelectItem value="commit">Commit</SelectItem>
+                <SelectItem value="push">Push upstream</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="start-field">
+            <Label htmlFor="start-review">Review</Label>
+            <Select value={review} onValueChange={(value) => setReview(value as typeof review)}>
+              <SelectTrigger id="start-review" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Automatic completion</SelectItem>
+                <SelectItem value="required">Require review</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <p className="start-help">
           {capabilities.data
-            ? `${capabilities.data.version} catalog. Availability is confirmed when a turn starts. Start remains unavailable until validation and delivery are connected.`
+            ? `${capabilities.data.version} catalog. Availability is confirmed when a turn starts. The selected delivery policy is verified after checks.`
             : capabilities.isError
               ? `Codex settings are unavailable: ${capabilities.error.message}`
               : "Checking installed Codex models and reasoning options…"}
@@ -701,6 +802,14 @@ export function StartPanel({
             rows={3}
           />
         </div>
+        <label className="start-help">
+          <input
+            type="checkbox"
+            checked={closeIssue}
+            onChange={(event) => setCloseIssue(event.target.checked)}
+          />{" "}
+          Close the GitHub issue after the result comment
+        </label>
         <div className="start-footer">
           <div>
             <Button
@@ -716,9 +825,30 @@ export function StartPanel({
             >
               {preview.isPending ? "Checking…" : "Check eligibility"}
             </Button>
-            <p role="status">Start is unavailable until the Codex adapter is connected.</p>
+            <p role="status">
+              {start.isError
+                ? start.error.message
+                : start.data
+                  ? `Run ${start.data.run_id}: ${start.data.state === "launch_unknown" ? "worker launch needs inspection" : "reserved"}.`
+                  : bootstrap.data?.capabilities.execution
+                    ? "Ready to reserve one run."
+                    : "Start requires the installed private service."}
+            </p>
           </div>
-          <Button disabled>Start work</Button>
+          <Button
+            disabled={
+              !bootstrap.data?.capabilities.execution ||
+              !selectedModel ||
+              !selectedReasoning ||
+              start.isPending ||
+              taskLimit < 1 ||
+              taskLimit > 100 ||
+              (scope === "fixed" && !fixedIssue)
+            }
+            onClick={() => start.mutate()}
+          >
+            {start.isPending ? "Starting…" : "Start work"}
+          </Button>
         </div>
         {previewCurrent && preview.data && (
           <div className="start-preview" role="status">

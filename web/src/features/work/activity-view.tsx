@@ -18,6 +18,7 @@ import {
   activityPageQuery,
   artifactPreviewQuery,
   checkOutputQuery,
+  decideReview,
   olderActivity,
   sendWorkControl,
   sendWorkMessage,
@@ -288,6 +289,26 @@ export function ActivityView({ runID }: { runID: string }) {
       setBusy(false);
     }
   }
+  async function review(decision: "approved" | "rejected") {
+    if (!state?.review_candidate_digest || !state.assignment_id || busy) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      await decideReview(
+        runID,
+        state.assignment_id,
+        state.review_candidate_digest,
+        decision,
+        decision === "rejected" ? draft : "",
+      );
+      if (decision === "rejected") setDraft("");
+      await client.invalidateQueries({ queryKey: ["runs", runID, "work"] });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not record review decision.");
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="activity-work">
       <div className="activity-head">
@@ -332,6 +353,44 @@ export function ActivityView({ runID }: { runID: string }) {
           <span>Connection status does not determine worker state.</span>
         </div>
       </div>
+      {state?.delivery ? (
+        <div className="work-state" role="status">
+          <strong>Delivery · {state.delivery.state}</strong>
+          <p>
+            {state.delivery.policy} · {state.delivery.branch}
+            {state.delivery.commit_sha ? ` · ${state.delivery.commit_sha.slice(0, 12)}` : ""}
+          </p>
+          {state.delivery.reason ? <p>{state.delivery.reason}</p> : null}
+          {state.report ? (
+            <p>
+              GitHub report · {state.report.state}
+              {state.report.reason ? ` · ${state.report.reason}` : ""}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {state?.attempt_phase === "awaiting_review" && state.review_candidate_digest ? (
+        <div className="work-state" role="status">
+          <strong>Review candidate · {state.review_candidate_digest.slice(0, 12)}</strong>
+          <p>
+            Required checks passed. Approval allows the selected Git delivery. Enter feedback in the
+            instructions draft before rejecting.
+          </p>
+          <div className="work-control-row">
+            <Button size="sm" disabled={busy} onClick={() => void review("approved")}>
+              Approve candidate
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void review("rejected")}
+            >
+              Reject with feedback
+            </Button>
+          </div>
+        </div>
+      ) : null}
       {page.isError ? <p role="alert">Activity is unavailable: {page.error.message}</p> : null}
       {work.isError ? (
         <p role="alert">Work controls are unavailable: {work.error.message}</p>

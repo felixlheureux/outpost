@@ -62,6 +62,8 @@ type Snapshot struct {
 	FetchedAt       string              `json:"fetched_at"`
 	WorkspacePath   string              `json:"workspace_path"`
 	Branch          string              `json:"branch"`
+	Upstream        string              `json:"upstream"`
+	RemoteDigest    string              `json:"remote_digest"`
 	Head            string              `json:"head"`
 	Status          string              `json:"status"`
 	Instructions    string              `json:"instructions"`
@@ -445,7 +447,8 @@ func (e Engine) Next(ctx context.Context, runID string, claim bool) (Projection,
 	for _, n := range chosen.req.Settings.DependsOn {
 		deps[n] = gens[n].BaselineHead
 	}
-	snapshot := Snapshot{IssueNumber: projection.Selected, IssueNodeID: chosen.source.NodeID, IssueURL: chosen.source.HTMLURL, Title: chosen.source.Title, Body: chosen.source.Body, Requirements: chosen.req, IssueDigest: chosen.digest, IssueRevision: revision, QueueSHA: sha, QueuePosition: position, FetchedAt: fetchedAt, WorkspacePath: run.WorkspacePath, Branch: branch, Head: head, Status: status, Instructions: schedule.Instructions, PolicyJSON: json.RawMessage(schedule.PolicyJSON), DependencyHeads: deps, Skipped: projection.Waiting}
+	upstream := gitcli.Upstream(ctx, run.WorkspacePath)
+	snapshot := Snapshot{IssueNumber: projection.Selected, IssueNodeID: chosen.source.NodeID, IssueURL: chosen.source.HTMLURL, Title: chosen.source.Title, Body: chosen.source.Body, Requirements: chosen.req, IssueDigest: chosen.digest, IssueRevision: revision, QueueSHA: sha, QueuePosition: position, FetchedAt: fetchedAt, WorkspacePath: run.WorkspacePath, Branch: branch, Upstream: upstream, RemoteDigest: gitcli.RemoteDigest(ctx, run.WorkspacePath, upstream), Head: head, Status: status, Instructions: schedule.Instructions, PolicyJSON: json.RawMessage(schedule.PolicyJSON), DependencyHeads: deps, Skipped: projection.Waiting}
 	b, _ := json.Marshal(snapshot)
 	generation := 1
 	if g, found := gens[projection.Selected]; found {

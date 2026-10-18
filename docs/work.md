@@ -31,7 +31,8 @@ provider process has closed. Resume requires a recorded thread ID and exact
 workspace identity. The original assignment snapshot and earlier provider prompt
 remain immutable; the new prompt includes the recorded continuation directions.
 The successful task count and limit remain on the same run. Queue admission stays
-stopped pending validation and delivery work in OP-011/012.
+stopped until runner checks and selected delivery settle; see
+`docs/validation.md` and `docs/delivery.md`.
 
 The one browser composer stores its unsent text in tab scoped session storage
 keyed by project and attempt. An HTTP submission does not clear the text. The

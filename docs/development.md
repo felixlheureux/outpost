@@ -44,7 +44,8 @@ through the installed Codex App Server. Configure a default project profile with
 `outpost checks set --project ID --file /absolute/checks.json`. The CLI `outpost run --project ID --model
 MODEL --reasoning EFFORT` reserves a run and launches its worker; choose a model
 and effort returned by the project's `/api/v1/agent/capabilities` endpoint.
-Provider handoff remains assigned through runner checks and until delivery is integrated.
+Provider handoff proceeds through runner checks, selected Git delivery, local
+settlement, and independent GitHub result reporting. See `docs/delivery.md`.
 While a run exists, Work shows retained activity, live turn instructions,
 stop/continue receipts, and current checkout changes. See `docs/activity.md` for
 stream and artifact bounds and `docs/work.md` for the control contract.
@@ -117,7 +118,9 @@ repository.
 Validation uses operator-configured profiles, retained check receipts and bounded
 repair; see `docs/validation.md`. `outpost checks recover --run-id ID` can
 reconcile a terminal check after the worker stops. A local pass does not settle
-Git delivery.
+Git delivery. The private Start panel and CLI capture the delivery policy;
+`outpost run --delivery local_changes|commit|push --review none|required`
+sets defaults, and `--close-issue` opts into issue closure after reporting.
 These tests do not establish production user-systemd ownership, Tailscale private
 identity, GitHub write permissions or phone acceptance. Those need separate host,
 account and device evidence.

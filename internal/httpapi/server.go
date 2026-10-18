@@ -115,6 +115,11 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 		}
 		var currentRun any
 		run, err := db.ActiveRun(c.Request().Context())
+		if err == nil && run.State == "completed" && stateDir != "" {
+			if reconcileErr := supervisor.ReconcileTerminal(c.Request().Context(), db, stateDir, run); reconcileErr == nil {
+				run, err = db.ActiveRun(c.Request().Context())
+			}
+		}
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
@@ -137,7 +142,7 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 		}
 		return c.JSON(200, map[string]any{
 			"version": version, "mode": mode, "current_run": currentRun,
-			"capabilities": map[string]bool{"repository_setup": workspacesDir != "", "execution": false},
+			"capabilities": map[string]bool{"repository_setup": workspacesDir != "", "execution": access != nil && stateDir != ""},
 		})
 	})
 	e.GET("/api/v1/agent/capabilities", func(c *echo.Context) error {
@@ -169,6 +174,7 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 	})
 	registerActivityRoutes(e, db, stateDir, activitySlots)
 	registerWorkRoutes(e, db, stateDir)
+	registerStartRoute(e, db, stateDir, access != nil, logger)
 	e.GET("/api/v1/projects", func(c *echo.Context) error {
 		rows, err := db.Queries.ListProjects(c.Request().Context())
 		if err != nil {

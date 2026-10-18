@@ -15,6 +15,33 @@ import (
 )
 
 func registerWorkRoutes(e *echo.Echo, db *store.Store, stateDir string) {
+	e.POST("/api/v1/runs/:id/review", func(c *echo.Context) error {
+		var input struct {
+			AssignmentID string `json:"assignment_id"`
+			Candidate    string `json:"candidate_digest"`
+			Decision     string `json:"decision"`
+			Feedback     string `json:"feedback"`
+		}
+		decoder := json.NewDecoder(io.LimitReader(c.Request().Body, 4096))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil {
+			return fail(c, 400, "invalid_review", "Choose a candidate and decision.")
+		}
+		if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+			return fail(c, 400, "invalid_review", "Send one review decision.")
+		}
+		if input.AssignmentID == "" || len(input.Candidate) != 64 || input.Decision != "approved" && input.Decision != "rejected" {
+			return fail(c, 400, "invalid_review", "Choose a valid candidate and decision.")
+		}
+		a, err := db.GetAssignment(c.Request().Context(), input.AssignmentID)
+		if err != nil || a.RunID != c.Param("id") {
+			return fail(c, 404, "assignment_not_found", "Assignment was not found in this run.")
+		}
+		if err = db.DecideReview(c.Request().Context(), a.ID, input.Candidate, input.Decision, input.Feedback); err != nil {
+			return fail(c, 409, "review_changed", "Candidate or review state changed. Refresh Work before deciding.")
+		}
+		return c.JSON(200, map[string]any{"assignment_id": a.ID, "candidate_digest": input.Candidate, "decision": input.Decision})
+	})
 	e.GET("/api/v1/runs/:id/changes", func(c *echo.Context) error { return changesForRun(c, db) })
 	e.GET("/api/v1/runs/:id/work", func(c *echo.Context) error {
 		overview, err := db.WorkOverview(c.Request().Context(), c.Param("id"))
@@ -65,7 +92,21 @@ func registerWorkRoutes(e *echo.Echo, db *store.Store, stateDir string) {
 				}
 			}
 		}
-		return c.JSON(200, map[string]any{"run_id": overview.RunID, "project_id": overview.ProjectID, "run_state": overview.RunState, "assignment_id": overview.AssignmentID, "assignment_started_at": overview.AssignmentStartedAt, "attempt_id": overview.AttemptID, "attempt_phase": overview.AttemptPhase, "attempt_outcome": overview.AttemptOutcome, "provider_state": overview.ProviderState, "provider_failure_code": overview.ProviderFailureCode, "thread_id": overview.ThreadID, "turn_id": overview.TurnID, "turn_open": overview.TurnOpen, "issue_number": overview.IssueNumber, "snapshot": snapshot, "model": overview.Model, "reasoning": overview.Reasoning, "sandbox": overview.Sandbox, "approval_policy": overview.ApprovalPolicy, "successful_count": overview.SuccessfulCount, "task_limit": overview.TaskLimit, "stop_requested": overview.StopRequested, "schedule_outcome": overview.ScheduleOutcome, "schedule_reason": overview.ScheduleReason, "messages": overview.Messages, "controls": overview.Controls, "attempts": overview.Attempts, "checks": checks})
+		reviewCandidate := ""
+		if overview.AssignmentID != "" {
+			_ = db.DB.QueryRowContext(c.Request().Context(), `SELECT c.candidate_digest FROM assignments a JOIN check_receipts c ON c.id=a.checks_receipt WHERE a.id=?`, overview.AssignmentID).Scan(&reviewCandidate)
+		}
+		var delivery any
+		var report any
+		if overview.AssignmentID != "" {
+			if receipt, e := db.GetDelivery(c.Request().Context(), overview.AssignmentID); e == nil {
+				delivery = map[string]any{"id": receipt.ID, "policy": receipt.Policy, "candidate_digest": receipt.Candidate, "branch": receipt.Branch, "upstream": receipt.Upstream, "commit_sha": receipt.CommitSHA, "state": receipt.State, "reason": receipt.Reason}
+			}
+			if receipt, e := db.GetReport(c.Request().Context(), overview.AssignmentID); e == nil {
+				report = map[string]any{"id": receipt.ID, "state": receipt.State, "reason": receipt.Reason}
+			}
+		}
+		return c.JSON(200, map[string]any{"review_candidate_digest": reviewCandidate, "delivery": delivery, "report": report, "run_id": overview.RunID, "project_id": overview.ProjectID, "run_state": overview.RunState, "assignment_id": overview.AssignmentID, "assignment_started_at": overview.AssignmentStartedAt, "attempt_id": overview.AttemptID, "attempt_phase": overview.AttemptPhase, "attempt_outcome": overview.AttemptOutcome, "provider_state": overview.ProviderState, "provider_failure_code": overview.ProviderFailureCode, "thread_id": overview.ThreadID, "turn_id": overview.TurnID, "turn_open": overview.TurnOpen, "issue_number": overview.IssueNumber, "snapshot": snapshot, "model": overview.Model, "reasoning": overview.Reasoning, "sandbox": overview.Sandbox, "approval_policy": overview.ApprovalPolicy, "successful_count": overview.SuccessfulCount, "task_limit": overview.TaskLimit, "stop_requested": overview.StopRequested, "schedule_outcome": overview.ScheduleOutcome, "schedule_reason": overview.ScheduleReason, "messages": overview.Messages, "controls": overview.Controls, "attempts": overview.Attempts, "checks": checks})
 	})
 	e.GET("/api/v1/runs/:id/checks/:receipt/output", func(c *echo.Context) error {
 		if stateDir == "" {

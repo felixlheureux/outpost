@@ -60,7 +60,11 @@ func (b *limitedBuffer) Write(p []byte) (int, error) {
 
 // Run receives argv, never a shell string. Outputs/errors must not be logged as credentials may occur in tool output.
 func Run(ctx context.Context, dir, name string, input io.Reader, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	return RunWithTimeout(ctx, 20*time.Second, dir, name, input, args...)
+}
+
+func RunWithTimeout(ctx context.Context, timeout time.Duration, dir, name string, input io.Reader, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir, cmd.Stdin = dir, input

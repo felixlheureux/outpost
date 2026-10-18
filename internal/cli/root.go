@@ -64,6 +64,7 @@ func New(out, errOut io.Writer) *cobra.Command {
 	child.Flags().StringVar(&checkSpec, "spec", "", "Private check child specification")
 	root.AddCommand(child)
 	addChecks(root, &stateDir)
+	addDelivery(root, &stateDir)
 	root.AddCommand(&cobra.Command{Use: "migrate", Short: "Apply schema upgrades with web/worker stopped", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		db, err := open(cmd.Context())
 		if err != nil {

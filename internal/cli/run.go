@@ -17,7 +17,8 @@ import (
 )
 
 func addRun(root *cobra.Command, stateDir *string, out io.Writer) {
-	var projectID, model, reasoning, instructions, requestKey, checkProfileFile, checkProfileName string
+	var projectID, model, reasoning, instructions, requestKey, checkProfileFile, checkProfileName, deliveryPolicy, reviewPolicy string
+	var closeIssue bool
 	var fixedIssue, limit int
 	cmd := &cobra.Command{Use: "run", Short: "Reserve and launch one owned Codex task", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		if projectID == "" || model == "" || reasoning == "" || limit < 1 || limit > 100 || fixedIssue < 0 || !filepath.IsAbs(*stateDir) {
@@ -25,6 +26,12 @@ func addRun(root *cobra.Command, stateDir *string, out io.Writer) {
 		}
 		if checkProfileFile != "" && checkProfileName != "" {
 			return fmt.Errorf("choose either a configured check profile or a profile file")
+		}
+		if deliveryPolicy != "local_changes" && deliveryPolicy != "commit" && deliveryPolicy != "push" {
+			return fmt.Errorf("invalid delivery policy")
+		}
+		if reviewPolicy != "none" && reviewPolicy != "required" {
+			return fmt.Errorf("invalid review policy")
 		}
 		ctx := cmd.Context()
 		db, err := store.Open(ctx, *stateDir)
@@ -92,7 +99,7 @@ func addRun(root *cobra.Command, stateDir *string, out io.Writer) {
 			mode, scope = "fixed", []int{fixedIssue}
 		}
 		scopeJSON, _ := json.Marshal(scope)
-		policyJSON, _ := json.Marshal(map[string]any{"agent": map[string]string{"model": model, "reasoning": reasoning, "sandbox": "workspace-write", "approval_policy": "on-request"}, "check_profile": profile})
+		policyJSON, _ := json.Marshal(map[string]any{"agent": map[string]string{"model": model, "reasoning": reasoning, "sandbox": "workspace-write", "approval_policy": "on-request"}, "check_profile": profile, "delivery": deliveryPolicy, "review": reviewPolicy, "close_issue": closeIssue})
 		run, replay, err := db.ReserveScheduledRun(ctx, projectID, project.WorkspacePath, requestKey, store.Schedule{Kind: "queue", Mode: mode, ScopeJSON: string(scopeJSON), PolicyJSON: string(policyJSON), Instructions: instructions, TaskLimit: limit})
 		if err != nil {
 			return err
@@ -121,5 +128,8 @@ func addRun(root *cobra.Command, stateDir *string, out io.Writer) {
 	cmd.Flags().StringVar(&checkProfileName, "check-profile", "", "Configured project check profile; defaults to the project default")
 	cmd.Flags().IntVar(&fixedIssue, "fixed-issue", 0, "Run only this queued issue; otherwise follow queue")
 	cmd.Flags().IntVar(&limit, "task-limit", 1, "Maximum completed tasks")
+	cmd.Flags().StringVar(&deliveryPolicy, "delivery", "local_changes", "Default delivery: local_changes, commit or push")
+	cmd.Flags().StringVar(&reviewPolicy, "review", "none", "Review: none or required")
+	cmd.Flags().BoolVar(&closeIssue, "close-issue", false, "Close the source issue after the verified result comment")
 	root.AddCommand(cmd)
 }

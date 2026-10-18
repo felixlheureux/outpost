@@ -146,7 +146,12 @@ func fixtureReceipts(ctx context.Context, db *store.Store, id string) error {
 	if err := db.AdvanceAttemptPhase(ctx, id, "closing", "delivering"); err != nil {
 		return err
 	}
-	return db.RecordCompletionReceipt(ctx, id, "delivery", "fixture-delivery-verified")
+	deliveryID := "fixture-delivery-" + id
+	_, err = db.DB.ExecContext(ctx, `INSERT INTO delivery_receipts(id,assignment_id,policy,candidate_digest,baseline_head,branch,paths_json,state,created_at,updated_at) VALUES(?,?,'local_changes','candidate','fixture-head','main','[]','settled','now','now')`, deliveryID, id)
+	if err != nil {
+		return err
+	}
+	return db.RecordCompletionReceipt(ctx, id, "delivery", deliveryID)
 }
 
 func succeedFixture(t *testing.T, ctx context.Context, db *store.Store, a *store.Assignment, head string) {

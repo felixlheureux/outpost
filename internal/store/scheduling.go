@@ -263,7 +263,7 @@ func (s *Store) BeginAttempt(ctx context.Context, assignmentID string) error {
 }
 
 func (s *Store) AdvanceAttemptPhase(ctx context.Context, assignmentID, expected, next string) error {
-	valid := (expected == "implementing" && next == "validating") || (expected == "validating" && (next == "repairing" || next == "closing")) || (expected == "repairing" && next == "validating") || (expected == "closing" && next == "delivering") || (expected == "delivering" && next == "awaiting_review")
+	valid := (expected == "implementing" && next == "validating") || (expected == "validating" && (next == "repairing" || next == "closing")) || (expected == "repairing" && next == "validating") || (expected == "closing" && (next == "delivering" || next == "awaiting_review")) || (expected == "awaiting_review" && next == "delivering")
 	if !valid {
 		return fmt.Errorf("invalid attempt phase transition")
 	}
@@ -287,7 +287,7 @@ func (s *Store) RecordCompletionReceipt(ctx context.Context, assignmentID, kind,
 		return fmt.Errorf("invalid completion receipt kind")
 	}
 	column, phase := "delivery_receipt", "delivering"
-	result, err := s.DB.ExecContext(ctx, `UPDATE assignments SET `+column+`=? WHERE id=? AND state='running' AND `+column+`='' AND EXISTS(SELECT 1 FROM assignment_attempts WHERE assignment_id=assignments.id AND phase=? AND outcome='running')`, receiptID, assignmentID, phase)
+	result, err := s.DB.ExecContext(ctx, `UPDATE assignments SET `+column+`=? WHERE id=? AND state='running' AND `+column+`='' AND EXISTS(SELECT 1 FROM assignment_attempts WHERE assignment_id=assignments.id AND phase=? AND outcome='running') AND EXISTS(SELECT 1 FROM delivery_receipts WHERE id=? AND assignment_id=assignments.id AND state='settled')`, receiptID, assignmentID, phase, receiptID)
 	if err != nil {
 		return err
 	}
@@ -422,8 +422,21 @@ func (s *Store) SettleAssignment(ctx context.Context, id, state, baselineHead st
 				return err
 			}
 		}
-		if prior != "running" || checks == "" || delivery == "" || verified != 1 {
+		var delivered int
+		if delivery != "" {
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM delivery_receipts d JOIN check_receipts c ON c.id=? WHERE d.id=? AND d.assignment_id=? AND d.state='settled' AND d.candidate_digest=c.candidate_digest`, checks, delivery, id).Scan(&delivered); err != nil {
+				return err
+			}
+		}
+		if prior != "running" || checks == "" || delivery == "" || verified != 1 || delivered != 1 {
 			return fmt.Errorf("successful assignment requires settled check and delivery receipts")
+		}
+		var phase string
+		if err := tx.QueryRowContext(ctx, `SELECT phase FROM assignment_attempts WHERE assignment_id=? AND outcome='running' ORDER BY ordinal DESC LIMIT 1`, id).Scan(&phase); err != nil {
+			return err
+		}
+		if phase != "delivering" {
+			return fmt.Errorf("assignment is not in delivery phase")
 		}
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)

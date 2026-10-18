@@ -72,3 +72,44 @@ func (s *Store) RecordCheckSuccess(ctx context.Context, assignmentID, receiptID 
 	}
 	return tx.Commit()
 }
+
+// BeginReviewRepair keeps a rejected candidate's evidence and starts a linked
+// provider attempt against the same pinned assignment.
+func (s *Store) BeginReviewRepair(ctx context.Context, assignmentID, candidate string) (string, error) {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	var oldID, thread, phase, provider string
+	var ordinal int
+	err = tx.QueryRowContext(ctx, `SELECT t.id,p.thread_id,t.phase,p.state,t.ordinal FROM assignment_attempts t JOIN provider_attempts p ON p.attempt_id=t.id JOIN assignments a ON a.id=t.assignment_id JOIN check_receipts c ON c.id=a.checks_receipt JOIN review_decisions r ON r.assignment_id=a.id AND r.candidate_digest=c.candidate_digest WHERE a.id=? AND a.state='running' AND t.outcome='running' AND r.decision='rejected' AND c.candidate_digest=? ORDER BY t.ordinal DESC LIMIT 1`, assignmentID, candidate).Scan(&oldID, &thread, &phase, &provider, &ordinal)
+	if err != nil {
+		return "", err
+	}
+	if phase != "awaiting_review" || provider != "completed" {
+		return "", ErrAdmissionChanged
+	}
+	id, err := newRandomID("attempt_", 16)
+	if err != nil {
+		return "", err
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	result, err := tx.ExecContext(ctx, `UPDATE assignment_attempts SET phase='settled',outcome='failed',settled_at=? WHERE id=? AND phase='awaiting_review' AND outcome='running'`, now, oldID)
+	if err != nil {
+		return "", err
+	}
+	if n, _ := result.RowsAffected(); n != 1 {
+		return "", ErrAdmissionChanged
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO assignment_attempts(id,assignment_id,ordinal,phase,outcome,predecessor_id,created_at) VALUES(?,?,?,'implementing','running',?,?)`, id, assignmentID, ordinal+1, oldID, now); err != nil {
+		return "", err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE assignments SET attempt_number=?,checks_receipt='' WHERE id=?`, ordinal+1, assignmentID); err != nil {
+		return "", err
+	}
+	if err = tx.Commit(); err != nil {
+		return "", err
+	}
+	return thread, nil
+}

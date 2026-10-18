@@ -147,7 +147,7 @@ func (s *Store) ReleaseReservation(ctx context.Context, id string) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE run_schedules SET outcome='stopped',reason='worker stopped after owned processes settled',revision=revision+1 WHERE run_id=? AND outcome='active'`, id); err != nil {
 		return err
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE runs SET reservation_state='released',state=CASE WHEN state='completed' OR (SELECT outcome FROM run_schedules WHERE run_id=runs.id)='complete' THEN 'completed' ELSE 'stopped' END,updated_at=? WHERE id=? AND reservation_state='reserved'`, now, id)
+	result, err := tx.ExecContext(ctx, `UPDATE runs SET reservation_state='released',state=CASE WHEN (SELECT outcome FROM run_schedules WHERE run_id=runs.id)='complete' THEN 'completed' ELSE 'stopped' END,updated_at=? WHERE id=? AND reservation_state='reserved'`, now, id)
 	if err != nil {
 		return err
 	}
@@ -179,6 +179,20 @@ func (s *Store) InterruptWorker(ctx context.Context, id string, pid int, startTi
 	}
 	if count, _ := result.RowsAffected(); count != 1 {
 		return fmt.Errorf("worker interruption did not match its recorded identity")
+	}
+	return nil
+}
+
+// CompleteWorker records a terminal scheduler outcome while the claimed worker
+// still owns its lock. The reservation is released only after OS liveness is
+// observed separately.
+func (s *Store) CompleteWorker(ctx context.Context, id string, pid int, ticks string) error {
+	r, err := s.DB.ExecContext(ctx, `UPDATE runs SET state='completed',updated_at=? WHERE id=? AND state='running' AND worker_pid=? AND worker_start_ticks=? AND EXISTS(SELECT 1 FROM run_schedules WHERE run_id=? AND outcome!='active') AND NOT EXISTS(SELECT 1 FROM assignments WHERE run_id=? AND state IN ('pending','running'))`, time.Now().UTC().Format(time.RFC3339Nano), id, pid, ticks, id, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := r.RowsAffected(); n != 1 {
+		return ErrAdmissionChanged
 	}
 	return nil
 }
