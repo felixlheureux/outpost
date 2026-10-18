@@ -1,6 +1,6 @@
 # Agent instructions for Outpost
 
-Outpost is a small personal control room for coding agents on one Linux host. Read `Outpost-Technical-Specification.md` for the product contract, `Outpost-Implementation-Tasks.md` for the ordered backlog, and `Outpost-UX-Reference.html` for the interactive design reference. A working Go/React starter now exists; inspect it before adding another convention. Read `docs/architecture.md`, `docs/dependencies.md`, and `docs/development.md` for the current implementation boundaries and commands.
+Outpost is a small personal control room for coding agents on one Linux host. Read `Outpost-Technical-Specification.md` for the product contract and `Outpost-Implementation-Tasks.md` for the ordered backlog. Inspect the existing Go/React implementation before adding another convention. Read `docs/architecture.md`, `docs/dependencies.md`, and `docs/development.md` for the current implementation boundaries and commands.
 
 ## Architecture and scope
 
@@ -51,7 +51,7 @@ Never label fixture results as actual Codex, Tailscale, systemd, GitHub-account,
 
 ## UI reference
 
-Use the prototype for compact density, Queue/Work/History, task inspector, persistent run bar, contextual controls, and stable instructions. Rebuild it in React/shadcn; the standalone export wrapper is not production architecture. The specification defines missing loading/conflict/stale/blocked/empty states and real ownership.
+Preserve the implemented compact Queue/Work/History layout, task inspector, persistent run bar, contextual controls, and stable instructions. The specification defines loading/conflict/stale/blocked/empty states and real ownership.
 
 Preserve unsent text across navigation/events/rejection and keep phone stop/continue/steer flows first-class. Do not add fake progress percentages or a dashboard full of arbitrary metrics.
 

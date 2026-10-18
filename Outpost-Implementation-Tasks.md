@@ -3,7 +3,6 @@
 **Revision:** 0.4 · October 17, 2026 · Published to felixlheureux/outpost
 **Target:** First usable personal release on a Linux host over Tailscale  
 **Companion specification:** [Outpost-Technical-Specification.md](Outpost-Technical-Specification.md)  
-**Interactive design reference:** [Outpost-UX-Reference.html](Outpost-UX-Reference.html)
 
 ## How to use this backlog
 
@@ -67,7 +66,7 @@ This order keeps an actual UI available early. Do not replace functional integra
 - Build Go + Echo and React/TypeScript/Vite/Tailwind/shadcn. Node/Vite are build/development tools; the release UI is served from the Go executable.
 - Default to one active task globally, one dedicated checkout per project, and no automatic cleanup of unfinished changes.
 - Follow queue refreshes between tasks. An active assignment remains pinned; pending tasks may change. Manifest order is the scheduler order after eligibility checks.
-- Use the prototype for density, navigation, contextual controls, and flow. It is illustrative state, not a backend implementation, API contract, or exact pixel mandate. Production behavior follows the specification.
+- Use the implemented interface for density, navigation, contextual controls, and flow. Production behavior follows the specification.
 - Every remote/process effect has a durable intent/receipt and a truthful unknown state. Avoid a universal workflow framework; narrow helpers and direct services are enough.
 - Run focused checks for the changed behavior. Format/generate before final acceptance. Reuse applicable receipts; metadata-only closeout does not justify another full suite.
 - Each task ends with: implemented behavior; touched contracts; checks/evidence; remaining limitations; and the next task's usable integration point. Never mark real-account/systemd/Tailscale acceptance passed solely because a fixture passed.
@@ -320,7 +319,7 @@ The owner can capture an issue, refine it, deliberately queue it, reorder pendin
 
 ### Implementation requirements
 
-1. Follow the prototype's density, restrained controls, three-view navigation, and selected task inspector. Use actual source data and honest loading/empty/error states.
+1. Preserve the compact density, restrained controls, three-view navigation, and selected task inspector. Use actual source data and honest loading/empty/error states.
 2. Implement Queued/Inbox tabs. Inbox means open unqueued issues, not a GitHub draft feature. Keep task selection and list position through refresh, edits, tab changes, and opening/closing details.
 3. Show position, issue number/title, readiness, dependency/hold reason, and source link. The next eligible task may differ from row one; expose both clearly. Do not add a priority sort that competes with manifest order.
 4. The inspector provides outcome/criteria, dependencies, effective checks/delivery, historical link, Edit, Queue/remove/hold, and accessible Move earlier/later actions. Do not require drag-and-drop.
@@ -494,7 +493,7 @@ The owner can monitor and steer real work, request a clean stop after the task, 
 
 ### Implementation requirements
 
-1. Build Work around the prototype: task/settings/phase header, Activity/Changes/Checks tabs, optional wide context panel, and one stable composer. Show actual model/reasoning/permissions and completed count/budget. No invented percentage.
+1. Build Work around a task/settings/phase header, Activity/Changes/Checks tabs, optional wide context panel, and one stable composer. Show actual model/reasoning/permissions and completed count/budget. No invented percentage.
 2. Activity uses bounded normalized events; Changes reads actual changed paths and lazy diffs; Checks integrates receipts as OP-011 lands. Keep task brief available when the context panel collapses.
 3. Persist live message intent with client ID, payload digest, attempt/session/expected-turn target, and queued/sending/accepted/rejected/unknown states. Accepted means provider acknowledgement, not implementation success.
 4. Reject stale targets without silently redirecting to another turn. Between managed turns, allow explicit next-turn delivery. Lost acknowledgement becomes unknown; do not automatically resend. Duplicate key/payload returns its receipt; changed payload conflicts.
@@ -651,7 +650,7 @@ The same app is comfortable for quick Tailscale check-ins from a phone and does 
 5. Use comfortable touch targets, 16px editable text where necessary, logical focus order, visible focus, native labeled controls, accessible tab/dialog behavior, Escape/close return focus, and keyboard alternatives for queue movement.
 6. Check light/dark contrast and semantic statuses paired with text. Honor reduced-motion and avoid continual animation/fake progress.
 7. Reconnect after sleep/network loss without discarding drafts, falsely claiming liveness, jumping the reader, duplicating a message, or reissuing an execution control automatically.
-8. Remove redundant settings/navigation and prototype-only explanatory text from product flows. Keep implementation details secondary unless they explain a meaningful decision.
+8. Remove redundant settings/navigation and explanatory text from product flows. Keep implementation details secondary unless they explain a meaningful decision.
 
 ### Managed repository onboarding
 
@@ -767,14 +766,8 @@ Fixture success cannot substitute for actual Codex/Tailscale/device acceptance. 
 
 Provide release/build identity, installation address, tested tool/provider versions, concise acceptance map, measured resource notes if any, known limitations, and upgrade/backup commands. Keep secrets and private logs out of public issue reports. Deferred work remains a separate backlog rather than expanding this release indefinitely.
 
-## Prototype reference and deliberate limits
+## UI implementation boundaries
 
-Open `Outpost-UX-Reference.html` in a browser. It is a standalone exported reference with illustrative tasks and in-memory interactions. Its Queue/Work/History navigation, task selection/movement, issue-form shape, Activity/Changes/Checks, stop/interrupt/continue, and contextual composer help explain the intended experience.
+The React/shadcn app provides Queue/Work/History navigation, task selection and movement, issue editing, Activity/Changes/Checks, stop/interrupt/continue, and a stable composer. These flows use the specification's real source, execution, and receipt owners.
 
-The reference does **not** call GitHub, launch Codex/systemd, perform real checks, persist user edits across reload, implement every blocked/empty/conflict state, or establish production authentication. Sample issue numbers, commits, times, and check output are fictional. The production app must connect those interactions to the specification's real owners and receipts.
-
-Rebuild the UI using the selected React/shadcn stack. Do not copy the prototype's standalone event delegation or visual-export wrapper as application architecture. Preserve the useful layout and interactions while improving actual responsive behavior, accessibility, and source/conflict states.
-
-The spec is authoritative when the prototype simplifies a flow. Notable examples: the production narrow-screen inspector is a sheet/detail route rather than merely a panel below the list; real GitHub writes expose saving/conflict/unknown states; and current-work landing depends on actual execution state rather than the sample's initial Queue screen.
-
-The concept begins with a populated project. First-run Add repository, managed clone/setup progress, and Add another repository/project switching are explicit required production flows in OP-003/006 and spec §§8–9/21; their absence from the concept does not defer them. INSTALL.md covers host installation separately.
+The narrow-screen inspector uses a detail view, GitHub writes expose saving/conflict/unknown states, and current-work landing depends on actual execution state. First-run Add repository, managed clone/setup progress, and Add another repository/project switching are required production flows in OP-003/006 and spec §§8–9/21. INSTALL.md covers host installation separately.

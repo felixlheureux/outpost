@@ -16,7 +16,7 @@ boundaries: docs/architecture.md. Library/auth choices: docs/dependencies.md.
 - Native Git and gh metadata adapters: bounded noninteractive argv, timeouts and
   redacted failures. Existing credentials stay with their official tools.
 - Source setup/build/check scripts, pinned-action CI workflow, short docs and
-  preserved original spec, prototype, templates, issue map and planning branch.
+  preserved original spec, templates, issue map and planning branch.
 
 HTTP errors use `{ "error": { "code", "message", "request_id" } }` for application
 responses. The development access boundary can reject requests before routing.

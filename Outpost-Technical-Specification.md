@@ -1322,7 +1322,7 @@ Inspect 390, 768, 820, 1024, and 1440 CSS pixels, plus a 320-pixel sanity check.
 
 TanStack Query owns cached server resources. Local state owns selection, expanded output, tabs, drafts, and reading position. SSE invalidates/updates affected resources; it never replaces the entire page. Following live activity can be disabled without suppressing new-event indicators.
 
-The accompanying `Outpost-UX-Reference.html` is a standalone clickable export of the October 17 concept, with bundled icons. It illustrates this navigation and these flows using fictional tasks/state; see `docs/prototype-reference.md` for its intended use and limitations. It is a design reference, not implementation or provider evidence. Implement real empty/loading/conflict/stale/blocked states rather than shipping simulated activity.
+The production UI implements these flows using real task and run state. Keep empty/loading/conflict/stale/blocked states explicit, and do not present simulated activity as provider evidence.
 
 ## 22. Tailscale as a first-class feature
 
@@ -2087,7 +2087,6 @@ The handoff includes basic repository files so a coding agent starts with concre
 | `docs/project-setup.md` | Initial commit, issue-template activation, planning setup, task publication/mapping |
 | `docs/task-authoring.md` | Task scope, dependencies, profile references, active edits, and completion semantics |
 | `docs/development.md` | Actual-build ownership and focused verification rules |
-| `docs/prototype-reference.md` | Clickable reference usage and distinction from production behavior |
 | `tasks/OP-xxx-*.md`, `implementation-plan.json`, `issue-map.json` | Published task snapshots and OP-ID-to-issue mapping; the planning manifest remains the runtime order authority |
 | `.editorconfig`, `.gitattributes`, `.gitignore` | Text consistency and local/generated/credential exclusions |
 
