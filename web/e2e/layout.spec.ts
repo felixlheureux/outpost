@@ -228,6 +228,9 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     await expect(page.getByLabel("Model")).toBeEnabled();
     await expect(page.getByLabel("Reasoning")).toBeEnabled();
     await expect(page.getByLabel("Reasoning")).toHaveText("medium");
+    await expect(
+      page.getByLabel("Close the GitHub issue after the completed result comment"),
+    ).toBeChecked();
     const workOverflow = await page.evaluate(() =>
       ["html", ".page", ".start-panel"].flatMap((selector) => {
         const element = document.querySelector(selector);
@@ -238,6 +241,11 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     if (width === 1440 || width === 390)
       await page.screenshot({ path: `/tmp/outpost-work-${width}.png`, fullPage: true });
   }
+  await page.getByLabel("Close the GitHub issue after the completed result comment").uncheck();
+  await page.reload();
+  await expect(
+    page.getByLabel("Close the GitHub issue after the completed result comment"),
+  ).not.toBeChecked();
   currentRun = { id: "run-1", project_id: "project_1", state: "running", liveness: "active" };
   await page.goto("/work?project=project_1");
   await expect(page.getByRole("heading", { name: `#7 ${title}` })).toBeVisible();

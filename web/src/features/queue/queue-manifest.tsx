@@ -583,7 +583,9 @@ export function StartPanel({
   const [review, setReview] = useState<"none" | "required">(() =>
     saved(`${contextKey}.review`) === "required" ? "required" : "none",
   );
-  const [closeIssue, setCloseIssue] = useState(() => saved(`${contextKey}.closeIssue`) === "true");
+  const [closeIssue, setCloseIssue] = useState(
+    () => saved(`${contextKey}.closeIssueChoice`) !== "false",
+  );
   useEffect(() => remember(`${contextKey}.scope`, scope), [contextKey, scope]);
   useEffect(() => remember(`${contextKey}.taskLimit`, String(taskLimit)), [contextKey, taskLimit]);
   useEffect(
@@ -595,10 +597,6 @@ export function StartPanel({
   useEffect(() => remember(`${contextKey}.reasoning`, reasoning), [contextKey, reasoning]);
   useEffect(() => remember(`${contextKey}.delivery`, delivery), [contextKey, delivery]);
   useEffect(() => remember(`${contextKey}.review`, review), [contextKey, review]);
-  useEffect(
-    () => remember(`${contextKey}.closeIssue`, String(closeIssue)),
-    [contextKey, closeIssue],
-  );
   const models = capabilities.data?.models ?? [];
   const selectedModel =
     models.find((item) => item.model === model) ?? models.find((item) => item.isDefault);
@@ -845,9 +843,12 @@ export function StartPanel({
           <input
             type="checkbox"
             checked={closeIssue}
-            onChange={(event) => setCloseIssue(event.target.checked)}
+            onChange={(event) => {
+              setCloseIssue(event.target.checked);
+              remember(`${contextKey}.closeIssueChoice`, String(event.target.checked));
+            }}
           />{" "}
-          Close the GitHub issue after the result comment
+          Close the GitHub issue after the completed result comment
         </label>
         <div className="start-footer">
           <div>
