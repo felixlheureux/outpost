@@ -75,8 +75,10 @@ browser’s OS dependencies too. `OUTPOST_TEST_CHROMIUM=/absolute/chromium` can
 select an existing test browser if the standard download is unavailable.
 The browser journey covers empty state, a simulated setup rejection with preserved
 URL, navigation/refresh, mobile overflow and API/assets 404. A separate gated Go
-integration test uses the host `gh` login to clone a real repository and replay its
-setup. Go tests cover
+integration test uses the host `gh` login to clone a real disposable repository
+and replay its setup. It may initialize that repository's planning branch, so it
+requires both `OUTPOST_GH_REPO_TEST_URL` and `OUTPOST_GH_QUEUE_TEST_WRITE=1`.
+Go tests cover
 read-only schema checks, real migrations, future-schema refusal, SQLite pragmas,
 real disposable Git, controlled gh argv/error redaction and HTTP boundaries.
 The gh executable in tests is a fixture, not GitHub-account acceptance.

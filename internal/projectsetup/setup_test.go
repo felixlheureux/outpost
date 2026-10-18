@@ -16,6 +16,9 @@ func TestRealGitHubManagedCloneAndReplay(t *testing.T) {
 	if url == "" {
 		t.Skip("set OUTPOST_GH_REPO_TEST_URL for a real host GitHub clone")
 	}
+	if os.Getenv("OUTPOST_GH_QUEUE_TEST_WRITE") != "1" {
+		t.Skip("set OUTPOST_GH_QUEUE_TEST_WRITE=1 for a disposable repository; setup may initialize its planning branch")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	state := filepath.Join(t.TempDir(), "state")
@@ -32,7 +35,7 @@ func TestRealGitHubManagedCloneAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.Stage != "queue_pending" || !validClone(ctx, first.WorkspacePath, first.Owner, first.Name) {
+	if first.Stage != "ready" || first.State != "ready" || !validClone(ctx, first.WorkspacePath, first.Owner, first.Name) {
 		t.Fatalf("clone was not published: %+v", first)
 	}
 	observed, source, err := db.ListIssueSources(ctx, first.ID)

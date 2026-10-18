@@ -191,3 +191,81 @@ export function syncProjectIssues(projectID: string) {
     },
   );
 }
+
+export const queueSource = z.object({
+  sha: z.string(),
+  issues: z.array(z.number().int().positive()),
+  state: z.enum(["not_synced", "ready", "needs_attention"]),
+  fetched_at: z.string(),
+  last_error: z.string(),
+});
+
+export function projectQueueQuery(projectID: string) {
+  return queryOptions({
+    queryKey: ["projects", projectID, "queue"],
+    queryFn: () => request(`/projects/${encodeURIComponent(projectID)}/queue`, queueSource),
+    refetchInterval: 30_000,
+  });
+}
+
+export function syncProjectQueue(projectID: string) {
+  return request(`/projects/${encodeURIComponent(projectID)}/queue/sync`, queueSource, {
+    method: "POST",
+  });
+}
+
+const queueOperation = z.object({
+  id: z.string(),
+  request_key: z.string(),
+  kind: z.enum(["replace", "append", "remove", "move"]),
+  state: z.enum(["pending", "confirmed", "rejected", "conflict", "unknown"]),
+  expected_sha: z.string(),
+  intended: z.object({
+    request_key: z.string(),
+    expected_sha: z.string(),
+    kind: z.enum(["replace", "append", "remove", "move"]),
+    issues: z.array(z.number().int().positive()).optional(),
+    issue: z.number().int().positive().optional(),
+    before: z.number().int().positive().optional(),
+  }),
+  current_issues: z.array(z.number().int().positive()),
+  reason: z.string(),
+  created_at: z.string(),
+});
+
+export function queueOperationsQuery(projectID: string) {
+  return queryOptions({
+    queryKey: ["projects", projectID, "queue-operations"],
+    queryFn: () =>
+      request(
+        `/projects/${encodeURIComponent(projectID)}/queue/operations`,
+        z.object({ operations: z.array(queueOperation) }),
+      ),
+  });
+}
+
+export function writeQueue(
+  projectID: string,
+  input: {
+    request_key: string;
+    expected_sha: string;
+    kind: "append" | "remove" | "move" | "replace";
+    issue?: number;
+    before?: number;
+    issues?: number[];
+  },
+) {
+  return request(`/projects/${encodeURIComponent(projectID)}/queue/operations`, queueOperation, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function inspectQueueOperation(projectID: string, requestKey: string) {
+  return request(
+    `/projects/${encodeURIComponent(projectID)}/queue/operations/${encodeURIComponent(requestKey)}/inspect`,
+    queueOperation,
+    { method: "POST" },
+  );
+}

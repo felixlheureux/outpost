@@ -15,6 +15,7 @@ import (
 
 	"github.com/felixlheureux/outpost/internal/githubcli"
 	"github.com/felixlheureux/outpost/internal/issues"
+	"github.com/felixlheureux/outpost/internal/queue"
 	"github.com/felixlheureux/outpost/internal/store"
 )
 
@@ -130,7 +131,27 @@ func sourcePending(ctx context.Context, db *store.Store, project store.ProjectSe
 		_ = db.SetProjectStage(settle, project.ID, "source_needs_attention", "failed", "Checkout retained. GitHub issue access needs attention; retry setup after checking host access.")
 		return project, fmt.Errorf("GitHub issue source unavailable: %w", err)
 	}
-	if err := db.SetProjectStage(ctx, project.ID, "queue_pending", "pending", ""); err != nil {
+	if err := db.SetProjectStage(ctx, project.ID, "queue_syncing", "pending", ""); err != nil {
+		return project, err
+	}
+	repo, err := githubcli.GetRepository(ctx, project.RepositoryURL)
+	if err == nil {
+		err = githubcli.EnsureQueue(ctx, project.Owner, project.Name, repo.DefaultBranch)
+	}
+	if err == nil {
+		var source queue.Source
+		source, err = queue.Sync(ctx, db, project.ID)
+		if err == nil && source.State != "ready" {
+			err = fmt.Errorf("%s", source.LastError)
+		}
+	}
+	if err != nil {
+		settle, done := context.WithTimeout(context.Background(), 5*time.Second)
+		defer done()
+		_ = db.SetProjectStage(settle, project.ID, "queue_needs_attention", "failed", "Checkout retained. Planning queue needs attention; retry setup after checking GitHub access or the queue file.")
+		return project, fmt.Errorf("planning queue setup: %w", err)
+	}
+	if err := db.SetProjectStage(ctx, project.ID, "ready", "ready", ""); err != nil {
 		return project, err
 	}
 	return db.GetProjectSetup(ctx, project.ID)

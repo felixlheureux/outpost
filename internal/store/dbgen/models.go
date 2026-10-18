@@ -64,6 +64,30 @@ type Project struct {
 	Managed       int64
 }
 
+type QueueOperation struct {
+	ID           string
+	ProjectID    string
+	RequestKey   string
+	Kind         string
+	ExpectedSha  string
+	IntendedJson string
+	ResultJson   string
+	ObservedJson string
+	State        string
+	Reason       string
+	CreatedAt    string
+	UpdatedAt    string
+}
+
+type QueueSource struct {
+	ProjectID  string
+	BlobSha    string
+	IssuesJson string
+	State      string
+	FetchedAt  string
+	LastError  string
+}
+
 type Run struct {
 	ID                string
 	ProjectID         string

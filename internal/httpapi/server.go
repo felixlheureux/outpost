@@ -22,6 +22,7 @@ import (
 	"github.com/felixlheureux/outpost/internal/issues"
 	"github.com/felixlheureux/outpost/internal/privateaccess"
 	"github.com/felixlheureux/outpost/internal/projectsetup"
+	"github.com/felixlheureux/outpost/internal/queue"
 	"github.com/felixlheureux/outpost/internal/store"
 	"github.com/felixlheureux/outpost/internal/supervisor"
 	"github.com/felixlheureux/outpost/internal/worker"
@@ -81,7 +82,7 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 			if c.Request().Method == http.MethodPost &&
 				(c.Request().URL.Path == "/api/v1/projects" ||
 					(strings.HasPrefix(c.Request().URL.Path, "/api/v1/projects/") &&
-						(strings.HasSuffix(c.Request().URL.Path, "/retry") || strings.HasSuffix(c.Request().URL.Path, "/issues/sync") || strings.HasSuffix(c.Request().URL.Path, "/inspect")))) {
+						(strings.HasSuffix(c.Request().URL.Path, "/retry") || strings.HasSuffix(c.Request().URL.Path, "/issues/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/operations") || strings.HasSuffix(c.Request().URL.Path, "/inspect")))) {
 				timeout = 10 * time.Minute
 			}
 			ctx, cancel := context.WithTimeout(c.Request().Context(), timeout)
@@ -307,6 +308,88 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 		}
 		c.Response().Header().Set("Cache-Control", "no-store")
 		return c.JSON(200, issueOperationDTO(op))
+	})
+	queueOperationDTO := func(op store.QueueOperation) map[string]any {
+		return map[string]any{"id": op.ID, "request_key": op.RequestKey, "kind": op.Kind, "state": op.State, "expected_sha": op.ExpectedSHA, "intended": json.RawMessage(op.IntendedJSON), "current_issues": json.RawMessage(op.ObservedJSON), "reason": op.Reason, "created_at": op.CreatedAt}
+	}
+	e.GET("/api/v1/projects/:id/queue", func(c *echo.Context) error {
+		source, err := queue.Cached(c.Request().Context(), db, c.Param("id"))
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		}
+		if err != nil {
+			return err
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, source)
+	})
+	e.POST("/api/v1/projects/:id/queue/sync", func(c *echo.Context) error {
+		source, err := queue.Sync(c.Request().Context(), db, c.Param("id"))
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		}
+		if err != nil {
+			return err
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, source)
+	})
+	e.POST("/api/v1/projects/:id/queue/operations", func(c *echo.Context) error {
+		var edit queue.Edit
+		decoder := json.NewDecoder(c.Request().Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&edit); err != nil {
+			return fail(c, 400, "invalid_queue_edit", "Enter a queue edit with a stable request key and expected SHA.")
+		}
+		if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+			return fail(c, 400, "invalid_queue_edit", "Send one queue edit.")
+		}
+		op, err := queue.Mutate(c.Request().Context(), db, c.Param("id"), edit)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		}
+		if err != nil {
+			return fail(c, 400, "invalid_queue_edit", err.Error())
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, queueOperationDTO(op))
+	})
+	e.GET("/api/v1/projects/:id/queue/operations", func(c *echo.Context) error {
+		if _, err := db.GetProjectSetup(c.Request().Context(), c.Param("id")); errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		} else if err != nil {
+			return err
+		}
+		ops, err := db.ListQueueOperations(c.Request().Context(), c.Param("id"))
+		if err != nil {
+			return err
+		}
+		items := make([]map[string]any, 0, len(ops))
+		for _, op := range ops {
+			items = append(items, queueOperationDTO(op))
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, map[string]any{"operations": items})
+	})
+	e.GET("/api/v1/projects/:id/queue/operations/:key", func(c *echo.Context) error {
+		op, err := db.QueueOperation(c.Request().Context(), c.Param("id"), c.Param("key"))
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "operation_not_found", "Queue operation was not found.")
+		}
+		if err != nil {
+			return err
+		}
+		return c.JSON(200, queueOperationDTO(op))
+	})
+	e.POST("/api/v1/projects/:id/queue/operations/:key/inspect", func(c *echo.Context) error {
+		op, err := queue.Inspect(c.Request().Context(), db, c.Param("id"), c.Param("key"))
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "operation_not_found", "Queue operation was not found.")
+		}
+		if err != nil {
+			return err
+		}
+		return c.JSON(200, queueOperationDTO(op))
 	})
 	missingAPI := func(c *echo.Context) error { return fail(c, 404, "not_found", "API endpoint not found.") }
 	e.Any("/api", missingAPI)

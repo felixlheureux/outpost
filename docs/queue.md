@@ -7,9 +7,11 @@ one `queue.json` on the configured planning branch, default `outpost/queue`.
 SQLite records source observations and execution receipts; its cache is not an
 independent reorderable queue.
 
-The file at `planning-branch/queue.json` is a seed only. Use the setup helper after
-the target repository has an initial commit. Do not pull/switch the planning branch
-inside the agent's coding checkout just to read or edit queue order.
+The file at `planning-branch/queue.json` is a seed only. Normal Add repository
+creates the branch and empty manifest when missing using the repository's default
+branch as its base. It reuses an existing valid manifest byte for byte. A failed
+source phase retains the checkout and can be retried. Do not pull/switch the
+planning branch inside the coding checkout just to read or edit queue order.
 
 ## Schema v1
 
@@ -45,6 +47,31 @@ holds still constrain eligibility. If 72 depends on 41 and the list is
 A reorder changes one file. Do not update issue titles/bodies to maintain ranks.
 GitHub issue edits have different concurrency semantics; do not assume an issue
 PATCH is protected by this file SHA.
+
+## Local API and receipts
+
+`GET /api/v1/projects/:id/queue` returns the cached SHA, ordered issue numbers,
+fetch time and source health. `POST .../queue/sync` refreshes the manifest and
+checks each referenced issue. The visible Queue view polls the cache every 30
+seconds and offers manual Sync. A failed refresh keeps the last good order and
+sets source health to `needs_attention`; it does not authorize new admission.
+
+`POST .../queue/operations` accepts a stable `request_key`, `expected_sha`, and
+one `kind`: `replace` with `issues`, `append` or `remove` with `issue`, or `move`
+with `issue` and optional `before` neighbor (omitted means end). It returns a
+receipt with `pending`, `confirmed`, `rejected`, `conflict`, or `unknown`, plus the
+intended edit and observed current order. `GET .../queue/operations` lists recent
+receipts; `GET .../queue/operations/:key` reads one; `POST
+.../queue/operations/:key/inspect` checks an uncertain write without replaying
+it. Reuse a key only for the exact same edit. A stale SHA yields a conflict and
+requires a new deliberate edit against the freshly observed order.
+
+The edit intent and calculated replacement are stored before the GitHub PUT.
+After a write, inspection checks the current blob and latest path commit marker.
+If either cannot prove the effect, the receipt stays `unknown`. A later writer
+may replace an earlier confirmed order; the latest manifest remains authoritative.
+The Contents API SHA check prevents routine stale overwrites but does not create
+a distributed execution lock across installations.
 
 ## Execution behavior
 

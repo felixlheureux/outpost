@@ -3,6 +3,7 @@ import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { ArrowUpRight, GitBranch, GitFork, ListOrdered, Play } from "lucide-react";
 import { useIssueEditor, useSetup } from "@/components/shell";
 import { Button } from "@/components/ui/button";
+import { QueueManifest } from "@/features/queue/queue-manifest";
 import {
   inspectIssueOperation,
   issueOperationsQuery,
@@ -90,6 +91,11 @@ function Queue() {
             </a>
           </article>
         </div>
+        <QueueManifest
+          projectID={project.id}
+          repositoryURL={project.repository_url}
+          issues={issueQuery.data?.issues ?? []}
+        />
         <div className="issue-source-panel">
           <div className="issue-source-heading">
             <div>
@@ -111,7 +117,7 @@ function Queue() {
           </div>
           <p className="issue-source-note">
             {issueQuery.data?.source.state === "ready"
-              ? `Cached ${issueQuery.data.issues.length} issues. Queue order is still being connected.`
+              ? `Cached ${issueQuery.data.issues.length} issues.`
               : issueQuery.data?.source.last_error || "Issue source has not been synchronized yet."}
           </p>
           {sync.isError && (

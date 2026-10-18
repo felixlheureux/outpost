@@ -1,6 +1,6 @@
 # Install and onboard Outpost
 
-**Status:** The source-build/local-preview instructions below work. A local-binary `outpost install --prepare` path prepares a private web service without changing an existing Serve route. The installer detects missing Debian/Ubuntu host tools and installs them through scoped apt or official Tailscale/Codex scripts; sign-in remains an explicit user step. Add repository now creates a managed checkout and connects GitHub Issues through the host `gh` login; planning queue setup remains pending. A user-systemd worker fixture verifies supervision and ownership, but real coding execution is not available. The complete owner workflow and public release assets are still being built.
+**Status:** The source-build/local-preview instructions below work. A local-binary `outpost install --prepare` path prepares a private web service without changing an existing Serve route. The installer detects missing Debian/Ubuntu host tools and installs them through scoped apt or official Tailscale/Codex scripts; sign-in remains an explicit user step. Add repository now creates a managed checkout, connects GitHub Issues, and initializes or reuses the planning queue through the host `gh` login. A user-systemd worker fixture verifies supervision and ownership, but real coding execution is not available. The complete owner workflow and public release assets are still being built.
 
 ## Choose release installation or source build
 
