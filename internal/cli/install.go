@@ -103,7 +103,9 @@ func runInstall(ctx context.Context, opts installOptions, out io.Writer) error {
 	if active {
 		err = db.CheckSchema(ctx)
 	} else {
-		err = db.Migrate(ctx)
+		if err = ensureMigrationIdle(ctx, db, opts.stateDir); err == nil {
+			err = db.Migrate(ctx)
+		}
 	}
 	if err != nil {
 		db.Close()

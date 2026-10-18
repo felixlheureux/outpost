@@ -163,7 +163,7 @@ Closing a browser does not stop a coding run. A web restart must not kill an ind
 
 Re-running installation must preserve configuration, routes, identities, projects, queues, history, and unfinished work. It reconciles completed installation phases rather than deleting and rebuilding state.
 
-The current `outpost install` intentionally refuses a differing installed binary. Until a guarded update command is shipped, a service-user update is a maintenance operation: finish/stop work, inspect `outpost status` until there is no active or unresolved run, stop the web service, make the backup below, atomically replace the binary, run `outpost --state-dir "$HOME/.local/state/outpost" migrate`, restart the service, and verify `outpost status` and the private URL. Keep the prior binary and backup until the result is verified. A migration against a newer unsupported schema fails; do not retry it with an older binary. Do not migrate while a worker or check child is active.
+The current `outpost install` intentionally refuses a differing installed binary. Until a guarded update command is shipped, a service-user update is a maintenance operation: finish/stop work, inspect `outpost status` until there is no active or unresolved run, stop the web service, make the backup below, atomically replace the binary, run `outpost --state-dir "$HOME/.local/state/outpost" migrate`, restart the service, and verify `outpost status` and the private URL. Keep the prior binary and backup until the result is verified. Migration refuses a reserved worker/check or an active web unit serving the same state directory; a newer unsupported schema also fails. Do not retry it with an older binary.
 
 ## Backup and restore
 

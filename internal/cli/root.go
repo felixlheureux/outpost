@@ -71,6 +71,9 @@ func New(out, errOut io.Writer) *cobra.Command {
 			return err
 		}
 		defer db.Close()
+		if err := ensureMigrationIdle(cmd.Context(), db, stateDir); err != nil {
+			return err
+		}
 		if err := db.Migrate(cmd.Context()); err != nil {
 			return err
 		}
