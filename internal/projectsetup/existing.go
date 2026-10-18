@@ -55,11 +55,11 @@ func RegisterExisting(ctx context.Context, db *store.Store, checkoutPath string)
 	if err != nil {
 		return project, err
 	}
-	stage, message := "queue_pending", ""
+	stage, message := "ready", ""
 	if dirty != "" {
-		stage, message = "queue_pending_dirty", "Existing checkout has local changes; inspect before execution."
+		stage, message = "ready_dirty", "Existing checkout has local changes; inspect before execution."
 	}
-	if err := db.SetProjectStage(ctx, project.ID, stage, "pending", message); err != nil {
+	if err := db.SetProjectStage(ctx, project.ID, stage, "ready", message); err != nil {
 		return project, err
 	}
 	return db.GetProjectSetup(ctx, project.ID)

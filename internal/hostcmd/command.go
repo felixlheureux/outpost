@@ -30,6 +30,8 @@ func (e *CommandError) Error() string {
 func classifyFailure(stderr string) string {
 	lower := strings.ToLower(stderr)
 	switch {
+	case strings.Contains(lower, "http 409"):
+		return "conflict"
 	case strings.Contains(lower, "rate limit"), strings.Contains(lower, "http 429"), strings.Contains(lower, "secondary rate"):
 		return "rate_limited"
 	case strings.Contains(lower, "http 401"), strings.Contains(lower, "authentication required"), strings.Contains(lower, "not logged in"):

@@ -44,7 +44,10 @@ func Stop(ctx context.Context, db *store.Store, stateDir, runID string) error {
 			if err != nil {
 				return fmt.Errorf("worker unit stopped but workspace remains owned; inspect surviving check processes: %w", err)
 			}
-			return lock.Close()
+			if err := lock.Close(); err != nil {
+				return err
+			}
+			return db.ReleaseReservation(ctx, run.ID)
 		}
 		select {
 		case <-ctx.Done():

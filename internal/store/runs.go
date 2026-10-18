@@ -19,6 +19,7 @@ var ErrRunConflict = errors.New("run request conflicts with its original scope")
 type Run struct {
 	ID, ProjectID, RequestKey, WorkspacePath, LaunchToken, UnitName string
 	State, LaunchObservation                                        string
+	ReservationState                                                string
 	WorkerPID                                                       int64
 	WorkerStartTicks                                                string
 }
@@ -50,7 +51,7 @@ func scanRun(row *sql.Row) (Run, error) {
 	var run Run
 	var pid sql.NullInt64
 	var ticks sql.NullString
-	err := row.Scan(&run.ID, &run.ProjectID, &run.RequestKey, &run.WorkspacePath, &run.LaunchToken, &run.UnitName, &run.State, &run.LaunchObservation, &pid, &ticks)
+	err := row.Scan(&run.ID, &run.ProjectID, &run.RequestKey, &run.WorkspacePath, &run.LaunchToken, &run.UnitName, &run.State, &run.LaunchObservation, &pid, &ticks, &run.ReservationState)
 	if pid.Valid {
 		run.WorkerPID = pid.Int64
 	}
@@ -60,14 +61,14 @@ func scanRun(row *sql.Row) (Run, error) {
 	return run, err
 }
 
-const runColumns = "id, project_id, request_key, workspace_path, launch_token, unit_name, state, launch_observation, worker_pid, worker_start_ticks"
+const runColumns = "id, project_id, request_key, workspace_path, launch_token, unit_name, state, launch_observation, worker_pid, worker_start_ticks, reservation_state"
 
 func (s *Store) GetRun(ctx context.Context, id string) (Run, error) {
 	return scanRun(s.DB.QueryRowContext(ctx, "SELECT "+runColumns+" FROM runs WHERE id = ?", id))
 }
 
 func (s *Store) ActiveRun(ctx context.Context) (Run, error) {
-	return scanRun(s.DB.QueryRowContext(ctx, "SELECT "+runColumns+" FROM runs WHERE state IN ('reserved','running','interrupted') LIMIT 1"))
+	return scanRun(s.DB.QueryRowContext(ctx, "SELECT "+runColumns+" FROM runs WHERE reservation_state='reserved' LIMIT 1"))
 }
 
 // ReserveRun commits the global slot and immutable unit/token before any
@@ -107,7 +108,7 @@ func (s *Store) ReserveRun(ctx context.Context, projectID, workspacePath, reques
 	_, err = tx.ExecContext(ctx, `INSERT INTO runs (id, project_id, request_key, workspace_path, launch_token, unit_name, state, launch_observation, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'reserved', 'pending', ?, ?)`, id, projectID, requestKey, workspace, token, unit, now, now)
 	if err != nil {
 		var occupied int
-		if checkErr := tx.QueryRowContext(ctx, "SELECT count(*) FROM runs WHERE state IN ('reserved','running','interrupted')").Scan(&occupied); checkErr == nil && occupied > 0 {
+		if checkErr := tx.QueryRowContext(ctx, "SELECT count(*) FROM runs WHERE reservation_state='reserved'").Scan(&occupied); checkErr == nil && occupied > 0 {
 			return zero, false, ErrSlotBusy
 		}
 		return zero, false, err
@@ -115,7 +116,45 @@ func (s *Store) ReserveRun(ctx context.Context, projectID, workspacePath, reques
 	if err := tx.Commit(); err != nil {
 		return zero, false, err
 	}
-	return Run{ID: id, ProjectID: projectID, RequestKey: requestKey, WorkspacePath: workspace, LaunchToken: token, UnitName: unit, State: "reserved", LaunchObservation: "pending"}, false, nil
+	return Run{ID: id, ProjectID: projectID, RequestKey: requestKey, WorkspacePath: workspace, LaunchToken: token, UnitName: unit, State: "reserved", LaunchObservation: "pending", ReservationState: "reserved"}, false, nil
+}
+
+// ReleaseReservation is called only after the supervisor has verified the
+// exact worker unit is stopped and the workspace advisory lock is obtainable.
+func (s *Store) ReleaseReservation(ctx context.Context, id string) error {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var state string
+	if err := tx.QueryRowContext(ctx, `SELECT state FROM runs WHERE id=? AND reservation_state='reserved'`, id).Scan(&state); err != nil {
+		return err
+	}
+	if state != "running" && state != "interrupted" && state != "completed" && state != "stopped" {
+		return ErrAdmissionChanged
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err = tx.ExecContext(ctx, `UPDATE execution_generations SET state='interrupted' WHERE assignment_id IN (SELECT id FROM assignments WHERE run_id=? AND state IN ('pending','running'))`, id); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE assignments SET state='interrupted',settled_at=? WHERE run_id=? AND state IN ('pending','running')`, now, id); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE assignment_attempts SET phase='settled',outcome='interrupted',settled_at=? WHERE assignment_id IN (SELECT id FROM assignments WHERE run_id=?) AND outcome IN ('pending','running')`, now, id); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE run_schedules SET outcome='stopped',reason='worker stopped after owned processes settled',revision=revision+1 WHERE run_id=? AND outcome='active'`, id); err != nil {
+		return err
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE runs SET reservation_state='released',state=CASE WHEN state='completed' OR (SELECT outcome FROM run_schedules WHERE run_id=runs.id)='complete' THEN 'completed' ELSE 'stopped' END,updated_at=? WHERE id=? AND reservation_state='reserved'`, now, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := result.RowsAffected(); n != 1 {
+		return ErrAdmissionChanged
+	}
+	return tx.Commit()
 }
 
 // ObserveLaunch records only the systemd launch observation, never task success.

@@ -99,6 +99,23 @@ export function retryRepositorySetup(projectID: string) {
   );
 }
 
+export const issueRequirements = z.object({
+  title: z.string(),
+  outcome: z.string(),
+  criteria: z.array(z.string()),
+  notes: z.string(),
+  settings: z.object({
+    outpost_task: z.number().optional(),
+    kind: z.string(),
+    depends_on: z.array(z.number()).nullable().optional(),
+    hold_reason: z.string().nullable().optional(),
+    check_profile: z.string(),
+    delivery: z.string(),
+    review: z.string(),
+  }),
+  has_settings: z.boolean(),
+});
+
 export const issueSource = z.object({
   source: z.object({
     state: z.enum(["not_synced", "ready", "needs_attention"]),
@@ -116,7 +133,7 @@ export const issueSource = z.object({
       content_digest: z.string(),
       fetched_at: z.string(),
       local_revision: z.number().int().positive(),
-      requirements: z.unknown().nullable(),
+      requirements: issueRequirements.nullable(),
       parse_error: z.string(),
       stale: z.boolean(),
     }),
@@ -189,5 +206,99 @@ export function syncProjectIssues(projectID: string) {
     {
       method: "POST",
     },
+  );
+}
+
+export const queueSource = z.object({
+  sha: z.string(),
+  issues: z.array(z.number().int().positive()),
+  state: z.enum(["not_synced", "ready", "needs_attention"]),
+  fetched_at: z.string(),
+  last_error: z.string(),
+});
+
+export function projectQueueQuery(projectID: string) {
+  return queryOptions({
+    queryKey: ["projects", projectID, "queue"],
+    queryFn: () => request(`/projects/${encodeURIComponent(projectID)}/queue`, queueSource),
+    refetchInterval: 30_000,
+  });
+}
+
+export function syncProjectQueue(projectID: string) {
+  return request(`/projects/${encodeURIComponent(projectID)}/queue/sync`, queueSource, {
+    method: "POST",
+  });
+}
+
+const admissionPreview = z.object({
+  selected: z.number().int().nonnegative(),
+  waiting: z.array(z.object({ issue: z.number().int(), code: z.string(), reason: z.string() })),
+  outcome: z.string(),
+  queue_sha: z.string(),
+  fetched_at: z.string(),
+});
+
+export function previewAdmission(projectID: string, mode: "follow" | "fixed", selected: number) {
+  return request(`/projects/${encodeURIComponent(projectID)}/admission-preview`, admissionPreview, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode, selected }),
+  });
+}
+
+const queueOperation = z.object({
+  id: z.string(),
+  request_key: z.string(),
+  kind: z.enum(["replace", "append", "remove", "move"]),
+  state: z.enum(["pending", "confirmed", "rejected", "conflict", "unknown"]),
+  expected_sha: z.string(),
+  intended: z.object({
+    request_key: z.string(),
+    expected_sha: z.string(),
+    kind: z.enum(["replace", "append", "remove", "move"]),
+    issues: z.array(z.number().int().positive()).optional(),
+    issue: z.number().int().positive().optional(),
+    before: z.number().int().positive().optional(),
+  }),
+  current_issues: z.array(z.number().int().positive()),
+  reason: z.string(),
+  created_at: z.string(),
+});
+
+export function queueOperationsQuery(projectID: string) {
+  return queryOptions({
+    queryKey: ["projects", projectID, "queue-operations"],
+    queryFn: () =>
+      request(
+        `/projects/${encodeURIComponent(projectID)}/queue/operations`,
+        z.object({ operations: z.array(queueOperation) }),
+      ),
+  });
+}
+
+export function writeQueue(
+  projectID: string,
+  input: {
+    request_key: string;
+    expected_sha: string;
+    kind: "append" | "remove" | "move" | "replace";
+    issue?: number;
+    before?: number;
+    issues?: number[];
+  },
+) {
+  return request(`/projects/${encodeURIComponent(projectID)}/queue/operations`, queueOperation, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function inspectQueueOperation(projectID: string, requestKey: string) {
+  return request(
+    `/projects/${encodeURIComponent(projectID)}/queue/operations/${encodeURIComponent(requestKey)}/inspect`,
+    queueOperation,
+    { method: "POST" },
   );
 }

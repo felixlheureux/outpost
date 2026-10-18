@@ -8,6 +8,41 @@ import (
 	"database/sql"
 )
 
+type Assignment struct {
+	ID              string
+	RunID           string
+	ProjectID       string
+	IssueNumber     int64
+	Generation      int64
+	AttemptNumber   int64
+	State           string
+	SnapshotJson    string
+	ChecksReceipt   string
+	DeliveryReceipt string
+	CreatedAt       string
+	SettledAt       sql.NullString
+}
+
+type AssignmentAttempt struct {
+	ID            string
+	AssignmentID  string
+	Ordinal       int64
+	Phase         string
+	Outcome       string
+	PredecessorID sql.NullString
+	CreatedAt     string
+	SettledAt     sql.NullString
+}
+
+type ExecutionGeneration struct {
+	ProjectID    string
+	IssueNumber  int64
+	Generation   int64
+	State        string
+	AssignmentID sql.NullString
+	BaselineHead string
+}
+
 type IssueOperation struct {
 	ID               string
 	ProjectID        string
@@ -64,6 +99,30 @@ type Project struct {
 	Managed       int64
 }
 
+type QueueOperation struct {
+	ID           string
+	ProjectID    string
+	RequestKey   string
+	Kind         string
+	ExpectedSha  string
+	IntendedJson string
+	ResultJson   string
+	ObservedJson string
+	State        string
+	Reason       string
+	CreatedAt    string
+	UpdatedAt    string
+}
+
+type QueueSource struct {
+	ProjectID  string
+	BlobSha    string
+	IssuesJson string
+	State      string
+	FetchedAt  string
+	LastError  string
+}
+
 type Run struct {
 	ID                string
 	ProjectID         string
@@ -77,4 +136,22 @@ type Run struct {
 	WorkerStartTicks  sql.NullString
 	CreatedAt         string
 	UpdatedAt         string
+	ReservationState  string
+}
+
+type RunSchedule struct {
+	RunID           string
+	Kind            string
+	Mode            string
+	ScopeJson       string
+	PolicyJson      string
+	Instructions    string
+	TaskLimit       int64
+	DeadlineAt      sql.NullString
+	SuccessfulCount int64
+	Revision        int64
+	StopRequested   int64
+	Outcome         string
+	Reason          string
+	CreatedAt       string
 }

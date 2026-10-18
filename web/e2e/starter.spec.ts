@@ -22,7 +22,7 @@ test("embedded SPA, preserved setup draft and mobile navigation", async ({ page,
   });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Bring your next project." })).toBeVisible();
-  await page.getByRole("button", { name: "Add repository", exact: true }).last().click();
+  await page.getByRole("button", { name: "More setup options" }).click();
   const dialog = page.getByRole("dialog");
   const input = dialog.getByLabel("GitHub repository");
   await input.fill("https://github.com/felixlheureux/outpost");

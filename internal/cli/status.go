@@ -74,7 +74,7 @@ func showStatus(ctx context.Context, configPath, stateDir string, out io.Writer)
 		return nil
 	}
 	var runID string
-	err = db.DB.QueryRowContext(ctx, "SELECT id FROM runs WHERE state IN ('reserved','running','interrupted') LIMIT 1").Scan(&runID)
+	err = db.DB.QueryRowContext(ctx, "SELECT id FROM runs WHERE reservation_state='reserved' LIMIT 1").Scan(&runID)
 	if errors.Is(err, sql.ErrNoRows) {
 		fmt.Fprintln(out, "Execution record: no active or unresolved run")
 		return nil
