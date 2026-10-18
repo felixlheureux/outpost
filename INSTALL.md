@@ -19,6 +19,11 @@ The initial automated package path targets Debian/Ubuntu-family Linux with syste
 
 Download `scripts/install.sh` from the matching release tag and run it as the service user. It selects `outpost-linux-amd64` or `outpost-linux-arm64`, verifies the matching `.sha256` asset, then invokes the canonical installer. Use `--release v0.1.0-rc1` for the published prerelease; the default uses GitHub's latest stable release, which is not published yet. The bootstrap also accepts an explicitly supplied locally built binary.
 
+```sh
+curl -fsSLo /tmp/outpost-install.sh https://raw.githubusercontent.com/felixlheureux/outpost/v0.1.0-rc1/scripts/install.sh
+sh /tmp/outpost-install.sh --release v0.1.0-rc1
+```
+
 The canonical configuration entry point is:
 
 ```sh
