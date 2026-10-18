@@ -91,6 +91,9 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 						(strings.HasSuffix(c.Request().URL.Path, "/retry") || strings.HasSuffix(c.Request().URL.Path, "/issues/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/operations") || strings.HasSuffix(c.Request().URL.Path, "/admission-preview") || strings.HasSuffix(c.Request().URL.Path, "/inspect")))) {
 				timeout = 10 * time.Minute
 			}
+			if c.Request().Method == http.MethodPost && strings.HasPrefix(c.Request().URL.Path, "/api/v1/projects/") && strings.HasSuffix(c.Request().URL.Path, "/runs") {
+				timeout = time.Minute
+			}
 			if c.Request().Method == http.MethodGet && c.Request().URL.Path == "/api/v1/agent/capabilities" {
 				timeout = 20 * time.Second
 			}
