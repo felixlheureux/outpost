@@ -155,6 +155,20 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
     if (width <= 900 && (await page.locator(".queue-grid.show-detail").count())) {
       await page.getByRole("button", { name: "Back to tasks" }).click();
     }
+    if (width <= 700) {
+      const task = page.getByRole("button", { name: /#7 Keep the queue readable/ });
+      await expect(task).toBeVisible();
+      const taskSize = await task.evaluate((element) => element.getBoundingClientRect().height);
+      expect(taskSize, `task touch target at ${width}px`).toBeGreaterThanOrEqual(44);
+      const repositoryWhiteSpace = await page
+        .locator(".page-title .eyebrow")
+        .evaluate((element) => getComputedStyle(element).whiteSpace);
+      expect(repositoryWhiteSpace, `repository name wrapping at ${width}px`).toBe("normal");
+      const titleWhiteSpace = await task
+        .locator("strong")
+        .evaluate((element) => getComputedStyle(element).whiteSpace);
+      expect(titleWhiteSpace, `task title wrapping at ${width}px`).toBe("normal");
+    }
     await page.getByRole("button", { name: /#7 Keep the queue readable/ }).click();
     if (width <= 900) {
       await expect(page.locator(".queue-list")).toBeHidden();

@@ -18,7 +18,7 @@
   --muted-foreground: #71717a;
   --accent: #f4f4f5;
   --accent-foreground: #27272a;
-  --destructive: #ef4444;
+  --destructive: #b91c1c;
   --border: #e4e4e7;
   --input: #e4e4e7;
   --ring: #52525b;
@@ -39,7 +39,7 @@
   --muted-foreground: #a1a1aa;
   --accent: #27272a;
   --accent-foreground: #fafafa;
-  --destructive: #7f1d1d;
+  --destructive: #f87171;
   --border: #3f3f46;
   --input: #3f3f46;
   --ring: #a1a1aa;
@@ -1330,6 +1330,21 @@ nav {
   }
 }
 @media (max-width: 700px) {
+  .page-title .eyebrow {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+  }
+  [data-slot="dropdown-menu-item"] {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  button,
+  [role="button"],
+  [role="menuitem"],
+  [role="tab"] {
+    min-height: 44px;
+  }
   input,
   textarea,
   select,
@@ -1366,6 +1381,11 @@ nav {
   }
   .issue-list small {
     grid-column: 2;
+  }
+  .issue-list strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
   }
   .issue-row > button {
     grid-column: 3;
