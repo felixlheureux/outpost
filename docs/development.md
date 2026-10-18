@@ -31,6 +31,12 @@ first creates web/dist, then compiles with CGO disabled and embeds UI/migrations
 Missing web/dist fails normal Go compilation; no placeholder assets are committed.
 `make build VERSION=your-label` sets the version. Override `GO` if required.
 
+`make release VERSION=vX.Y.Z` builds checksum-protected static Linux amd64 and
+arm64 executables plus the maintenance backup script under `dist/`. A pushed
+`v*` tag runs `.github/workflows/release.yml` and publishes those assets after
+the source gates pass. The local cross build verifies arm64 compilation; it does
+not prove arm64 execution or a clean-host install.
+
 `--state-dir /absolute/private/path` is a persistent flag for migrate/serve. State
 defaults to `$XDG_STATE_HOME/outpost` or `~/.local/state/outpost`. `serve` checks
 schema compatibility without migrating. Stop services before explicit upgrades.

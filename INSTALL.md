@@ -1,6 +1,6 @@
 # Install and onboard Outpost
 
-**Status:** The source-build/local-preview instructions below work. A local-binary `outpost install --prepare` path prepares a private web service without changing an existing Serve route. The installer detects missing Debian/Ubuntu host tools and installs them through scoped apt or official Tailscale/Codex scripts; sign-in remains an explicit user step. Add repository creates a managed checkout, connects GitHub Issues, and initializes or reuses the planning queue through the host `gh` login. An owned worker can execute an assigned task through Codex App Server, run configured local checks with bounded repair, and use selected Git delivery with recoverable GitHub reporting. The private browser Start control is implemented. The full configured private host and owner-device journey still needs acceptance; public release assets are pending.
+**Status:** The source build and local-binary install work on the configured host. The release target now produces the Linux binaries and checksums expected by the bootstrap; the tag workflow publishes them after checks pass. No release is published yet, so the bootstrap download path is not currently installable. Clean-host and owner-device acceptance remain outstanding.
 
 ## Choose release installation or source build
 
@@ -13,13 +13,13 @@ The dashboard's release UI does not require a Vite/Node server or a Go compiler.
 
 The initial automated package path targets Debian/Ubuntu-family Linux with systemd. The release must list the exact tested distro versions and architectures. Unsupported hosts get explicit manual prerequisites or an unsupported result, never a misleading successful installation.
 
-## Normal release installation: target flow
+## Normal release installation
 
 ### 1. Obtain the executable
 
-Use the project's actual release assets for your Linux architecture, or its delivered `scripts/install.sh` bootstrap. The bootstrap must verify the published checksum and call the canonical installer. It must support an explicitly supplied locally built binary so installation can be tested before the first public release exists.
+After a release is published, download its `scripts/install.sh` bootstrap from the matching tag and run it as the service user. It selects `outpost-linux-amd64` or `outpost-linux-arm64`, verifies the matching `.sha256` asset, then invokes the canonical installer. The bootstrap also accepts an explicitly supplied locally built binary.
 
-`scripts/install.sh` accepts a locally built binary now. Its release-download path expects future `outpost-linux-amd64` or `outpost-linux-arm64` assets and matching `.sha256` files; no release asset is currently published, so that path must not be reported as working until OP-016 publishes and verifies it. The canonical configuration entry point is:
+No release asset is currently published, so the download path must not be reported as working until a tag build publishes and verifies it. The canonical configuration entry point is:
 
 ```sh
 ./outpost install
@@ -163,13 +163,22 @@ Closing a browser does not stop a coding run. A web restart must not kill an ind
 
 Re-running installation must preserve configuration, routes, identities, projects, queues, history, and unfinished work. It reconciles completed installation phases rather than deleting and rebuilding state.
 
-For a binary/schema update: finish/stop current work, verify all owned worker/check processes are settled, back up the required state, replace the binary atomically, apply supported migrations, restart the web service, and run doctor. Updating while owned work is active is outside the first-release update contract.
+The current `outpost install` intentionally refuses a differing installed binary. Until a guarded update command is shipped, a service-user update is a maintenance operation: finish/stop work, inspect `outpost status` until there is no active or unresolved run, stop the web service, make the backup below, atomically replace the binary, run `outpost --state-dir "$HOME/.local/state/outpost" migrate`, restart the service, and verify `outpost status` and the private URL. Keep the prior binary and backup until the result is verified. A migration against a newer unsupported schema fails; do not retry it with an older binary. Do not migrate while a worker or check child is active.
 
 ## Backup and restore
 
-Back up the SQLite database consistently together with referenced artifacts, configuration, and managed checkouts containing local-only changes/commits. A repository on GitHub does not contain your unpushed files. Respect WAL/maintenance rules; copying only an active main database file is insufficient.
+With all work settled, stop the web service and run the maintenance-only Python 3 backup tool. It refuses an active web service, an active worker unit, or a reserved run; snapshots SQLite through its backup API and copies state artifacts, private config, and managed checkouts. It excludes previous backups, runtime locks, and SQLite WAL/SHM files. Keep the resulting directory private; it may contain source code and logs. A repository on GitHub does not contain unpushed work.
 
-Restore on an idle installation, preserve the previous state until verified, and check schema/identity/ownership plus referenced artifacts. Do not reclone over restored unfinished work. Keep provider/Git/Tailscale credentials under their existing private owners rather than dumping their stores into a public archive.
+```sh
+outpost status
+systemctl --user stop outpost.service
+python3 scripts/backup.py --output "$HOME/.local/state/outpost-backups/backup-$(date -u +%Y%m%dT%H%M%SZ)"
+systemctl --user start outpost.service
+```
+
+Create the private `outpost-backups` parent first (`install -d -m 700 "$HOME/.local/state/outpost-backups"`). A published release also includes the checksum-protected `outpost-backup.py` asset, which can be run in place of the source script. Python 3 is required for this maintenance command, not for the dashboard runtime.
+
+Before a live restore, copy the backup's `state` directory to a disposable location and check `PRAGMA integrity_check`, schema version, project rows, and workspace copies. On an idle installation, stop the service, move the existing state/config/workspaces aside, and copy the backup's `state`, `config.json`, and `workspaces` to the absolute paths in `manifest.json` with private ownership/modes. Keep the moved-aside data until the restored installation passes `outpost status`, schema checks, and private URL verification. Do not reclone over restored unfinished work. Codex/Git/Tailscale credential stores remain with their existing owners and are not included in this backup.
 
 ## Removal boundaries
 

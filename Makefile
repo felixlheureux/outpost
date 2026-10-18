@@ -3,7 +3,7 @@ GOFMT ?= gofmt
 SQLC ?= sqlc
 VERSION ?= development
 
-.PHONY: setup dev build check check-format generate smoke format
+.PHONY: setup dev build release check check-format generate smoke format
 
 setup:
 	$(GO) mod download
@@ -15,6 +15,17 @@ dev:
 build:
 	npm --prefix web run build
 	CGO_ENABLED=0 $(GO) build -buildvcs=false -trimpath -ldflags="-s -w -X github.com/felixlheureux/outpost/internal/cli.Version=$(VERSION)" -o bin/outpost ./cmd/outpost
+
+release:
+	@test "$(VERSION)" != development || (echo 'Set VERSION to the release tag' >&2; exit 1)
+	npm --prefix web run build
+	mkdir -p dist
+	@for arch in amd64 arm64; do \
+		CGO_ENABLED=0 GOOS=linux GOARCH=$$arch $(GO) build -buildvcs=false -trimpath -ldflags="-s -w -X github.com/felixlheureux/outpost/internal/cli.Version=$(VERSION)" -o dist/outpost-linux-$$arch ./cmd/outpost || exit; \
+		(cd dist && sha256sum outpost-linux-$$arch > outpost-linux-$$arch.sha256) || exit; \
+	done
+	cp scripts/backup.py dist/outpost-backup.py
+	(cd dist && sha256sum outpost-backup.py > outpost-backup.py.sha256)
 
 generate:
 	@test "$$($(SQLC) version)" = "v1.31.1" || (echo 'Use sqlc v1.31.1 (see docs/development.md)' >&2; exit 1)

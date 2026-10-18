@@ -41,9 +41,7 @@ Project switching changes what you browse, while the running assignment stays pi
 
 ## Project status
 
-Outpost is in active development. The source build, local preview, repository onboarding, queue and Work views, Codex worker, validation, and delivery paths are implemented. A public release download is not yet available. The guided installer and the full private host, GitHub write, and owner-device journey still need release acceptance; see [installation status](INSTALL.md) and the [ordered implementation backlog](Outpost-Implementation-Tasks.md).
-
-The next implementation area is [History and recovery (OP-013)](https://github.com/felixlheureux/outpost/issues/13). GitHub Issues hold the current task requirements; the files under [`tasks/`](tasks/) are planning snapshots.
+Outpost is in active development. The source build, local preview, repository onboarding, Queue, Work, History, Codex worker, validation, and delivery paths are implemented. The release build now creates checksum-protected Linux assets, but no public release is published yet. Clean-host and owner-device acceptance remain outstanding; see [installation status](INSTALL.md) and [OP-016](https://github.com/felixlheureux/outpost/issues/16). GitHub Issues hold current task requirements; files under [`tasks/`](tasks/) are planning snapshots.
 
 ## Architecture and contributing
 
