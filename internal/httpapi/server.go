@@ -23,6 +23,7 @@ import (
 	"github.com/felixlheureux/outpost/internal/privateaccess"
 	"github.com/felixlheureux/outpost/internal/projectsetup"
 	"github.com/felixlheureux/outpost/internal/queue"
+	"github.com/felixlheureux/outpost/internal/scheduler"
 	"github.com/felixlheureux/outpost/internal/store"
 	"github.com/felixlheureux/outpost/internal/supervisor"
 	"github.com/felixlheureux/outpost/internal/worker"
@@ -82,7 +83,7 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 			if c.Request().Method == http.MethodPost &&
 				(c.Request().URL.Path == "/api/v1/projects" ||
 					(strings.HasPrefix(c.Request().URL.Path, "/api/v1/projects/") &&
-						(strings.HasSuffix(c.Request().URL.Path, "/retry") || strings.HasSuffix(c.Request().URL.Path, "/issues/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/operations") || strings.HasSuffix(c.Request().URL.Path, "/inspect")))) {
+						(strings.HasSuffix(c.Request().URL.Path, "/retry") || strings.HasSuffix(c.Request().URL.Path, "/issues/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/sync") || strings.HasSuffix(c.Request().URL.Path, "/queue/operations") || strings.HasSuffix(c.Request().URL.Path, "/admission-preview") || strings.HasSuffix(c.Request().URL.Path, "/inspect")))) {
 				timeout = 10 * time.Minute
 			}
 			ctx, cancel := context.WithTimeout(c.Request().Context(), timeout)
@@ -322,6 +323,30 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 		}
 		c.Response().Header().Set("Cache-Control", "no-store")
 		return c.JSON(200, source)
+	})
+	e.POST("/api/v1/projects/:id/admission-preview", func(c *echo.Context) error {
+		var input struct {
+			Mode     string `json:"mode"`
+			Selected int    `json:"selected"`
+		}
+		decoder := json.NewDecoder(c.Request().Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil {
+			return fail(c, 400, "invalid_preview", "Choose Follow queue or a selected fixed task.")
+		}
+		if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+			return fail(c, 400, "invalid_preview", "Send one preview request.")
+		}
+		projection, err := (scheduler.Engine{DB: db}).PreviewProject(c.Request().Context(), c.Param("id"), input.Mode, input.Selected)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "project_not_found", "Repository was not found.")
+		}
+		if err != nil {
+			logger.Warn("admission preview failed", "error", err)
+			return fail(c, 400, "invalid_preview", "Admission preview could not be completed.")
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, projection)
 	})
 	e.POST("/api/v1/projects/:id/queue/sync", func(c *echo.Context) error {
 		source, err := queue.Sync(c.Request().Context(), db, c.Param("id"))

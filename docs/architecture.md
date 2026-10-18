@@ -5,8 +5,9 @@ The starter implements the local shell and persistence boundary. The current
 implementation adds a pinned Tailscale operator boundary, a preparation-stage
 private web service, worker ownership fixtures, managed GitHub cloning and an
 issue source projection with durable create/edit receipts, and a GitHub planning
-queue projection with durable edit receipts, and the Queue/Inbox workspace with
-task inspection and an honest disabled start panel. Codex work is not yet integrated.
+queue projection with durable edit receipts, the Queue/Inbox workspace, and a
+durable scheduler with fresh-source admission and an eligibility preview. The
+start panel remains disabled until the provider adapter is connected.
 The complete behavior contract remains the technical specification.
 
 ## Follow a request
@@ -30,6 +31,7 @@ or service layers for every table in advance.
 | `internal/issues` | Bounded requirements parsing, source sync and issue mutation reconciliation |
 | `internal/projectsetup` | Durable managed checkout staging, clone and retry |
 | `internal/queue` | Planning manifest validation, source sync, edit and inspection receipts |
+| `internal/scheduler` | Fresh manifest/dependency observation, eligibility, immutable assignment and fixture worker loop |
 | `internal/supervisor`, `internal/worker` | Recorded worker units, process identity and workspace exclusion |
 | `web/assets*.go` | Production embedding; explicit development build variant |
 | `web/src/routes` | TanStack Router file routes and route-level composition |
@@ -41,8 +43,11 @@ or service layers for every table in advance.
 
 GitHub Issues own task requirements; the planning branch owns queue order. The
 SQLite projects table is the first local projection, not a second task source.
-The runs table owns one global execution slot and launch receipts; no task rank
-field is authoritative.
+The runs table owns one global execution slot and launch receipts; the separate
+reservation state stays held until worker/process settlement. `run_schedules`,
+`execution_generations`, `assignments`, and `assignment_attempts` own captured
+policy, completion identity, immutable source/baseline snapshots, and attempt
+phase receipts. No task rank field is authoritative.
 HTTP DTOs omit database internals and host paths.
 
 Use native Git for clone/status/diff/commit/push. Use `gh api` for GitHub Issues,
@@ -101,6 +106,9 @@ interrupted-clone recovery and readiness reporting. Advanced existing-checkout
 registration and guarded setup retry are available.
 OP-005: verify a real GitHub planning-branch read/write and source setup with the
 service user's account. The local implementation uses fixture GitHub responses.
-OP-007/008: add scheduler/provider lifecycles without binding them to HTTP contexts.
-OP-007 should return effective model, reasoning, permissions, branch, and delivery
-readiness before enabling Start; the current panel labels these values unavailable.
+OP-008: connect the claimed worker to `scheduler.Engine.Drive` with real provider,
+check, and delivery receipts. The scheduler's fixture callback proves admission
+timing; it is not actual Codex execution. The admission preview returns the
+current selected issue, waiting codes, queue SHA, and fetch time. Effective
+model/reasoning/permission settings remain unavailable until provider readiness
+exists, so Start remains disabled.

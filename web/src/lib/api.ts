@@ -231,6 +231,22 @@ export function syncProjectQueue(projectID: string) {
   });
 }
 
+const admissionPreview = z.object({
+  selected: z.number().int().nonnegative(),
+  waiting: z.array(z.object({ issue: z.number().int(), code: z.string(), reason: z.string() })),
+  outcome: z.string(),
+  queue_sha: z.string(),
+  fetched_at: z.string(),
+});
+
+export function previewAdmission(projectID: string, mode: "follow" | "fixed", selected: number) {
+  return request(`/projects/${encodeURIComponent(projectID)}/admission-preview`, admissionPreview, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode, selected }),
+  });
+}
+
 const queueOperation = z.object({
   id: z.string(),
   request_key: z.string(),

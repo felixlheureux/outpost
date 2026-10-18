@@ -15,7 +15,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const SchemaVersion int64 = 5
+const SchemaVersion int64 = 6
 
 type Store struct {
 	DB      *sql.DB
@@ -58,6 +58,10 @@ func Open(ctx context.Context, stateDir string) (*Store, error) {
 	for _, pragma := range []string{"foreign_keys(1)", "busy_timeout(5000)", "journal_mode(WAL)"} {
 		q.Add("_pragma", pragma)
 	}
+	// Admission reads and writes in one short transaction. Acquire SQLite's
+	// writer lock at BEGIN so concurrent connections wait instead of both
+	// reading and then failing an attempted lock upgrade with SQLITE_BUSY.
+	q.Set("_txlock", "immediate")
 	u.RawQuery = q.Encode()
 	db, err := sql.Open("sqlite", u.String())
 	if err != nil {

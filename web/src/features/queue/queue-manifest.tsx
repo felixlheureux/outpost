@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   type IssueSource,
   inspectQueueOperation,
+  previewAdmission,
   projectQueueQuery,
   queueOperationsQuery,
   syncProjectQueue,
@@ -126,6 +127,14 @@ export function QueueManifest({
     queue.data?.state === "ready"
       ? order.find((number) => !blocker(byNumber.get(number), byNumber))
       : undefined;
+  const fixedIssue = selected !== null && order.includes(selected) ? selected : next;
+  const preview = useMutation({
+    mutationFn: (input: { mode: "follow" | "fixed"; selected: number }) =>
+      previewAdmission(projectID, input.mode, input.selected),
+  });
+  const previewCurrent =
+    preview.variables?.mode === scope &&
+    preview.variables.selected === (scope === "fixed" ? (fixedIssue ?? 0) : 0);
   const editingBlocked = write.isPending || Boolean(pendingEdit);
   const editReceipt = inspect.data ?? write.data;
   function submit(kind: Edit["kind"], issue: number, before?: number) {
@@ -432,7 +441,11 @@ export function QueueManifest({
       <div className="start-panel">
         <div>
           <span className="eyebrow">Start work</span>
-          <h2>{next ? `Next: #${next} ${byNumber.get(next)?.title ?? ""}` : "No eligible task"}</h2>
+          <h2>
+            {next
+              ? `Queue candidate: #${next} ${byNumber.get(next)?.title ?? ""}`
+              : "No local queue candidate"}
+          </h2>
           <p>
             {next
               ? `Queued position ${order.indexOf(next) + 1}. ${order.indexOf(next) > 0 ? "Earlier tasks are blocked or closed." : "First in queue."}`
@@ -458,7 +471,10 @@ export function QueueManifest({
                 <input
                   type="radio"
                   checked={scope === "follow"}
-                  onChange={() => setScope("follow")}
+                  onChange={() => {
+                    setScope("follow");
+                    preview.reset();
+                  }}
                 />{" "}
                 Follow queue
               </label>
@@ -466,7 +482,10 @@ export function QueueManifest({
                 <input
                   type="radio"
                   checked={scope === "fixed"}
-                  onChange={() => setScope("fixed")}
+                  onChange={() => {
+                    setScope("fixed");
+                    preview.reset();
+                  }}
                 />{" "}
                 Fixed scope
               </label>
@@ -474,12 +493,38 @@ export function QueueManifest({
             <p>
               {scope === "follow"
                 ? "Tasks deliberately added to this queue may run after the current task, within the remaining budget."
-                : `Only the selected next task #${next ?? "—"} would be in scope.`}
+                : `Only issue #${fixedIssue ?? "—"} would be in scope.`}
             </p>
             <p>
               Model, reasoning, permissions, and delivery are resolved from project settings at
               admission. Their effective values are not available yet.
             </p>
+            <Button
+              variant="outline"
+              disabled={preview.isPending || (scope === "fixed" && !fixedIssue)}
+              onClick={() =>
+                preview.mutate({ mode: scope, selected: scope === "fixed" ? (fixedIssue ?? 0) : 0 })
+              }
+            >
+              {preview.isPending ? "Checking…" : "Check current eligibility"}
+            </Button>
+            {previewCurrent && preview.data && (
+              <div role="status">
+                <p>
+                  {preview.data.selected
+                    ? `Fresh source selects #${preview.data.selected}.`
+                    : `Admission: ${preview.data.outcome || "no eligible task"}.`}
+                </p>
+                {preview.data.waiting.map((item) => (
+                  <p key={`${item.issue}-${item.code}`}>
+                    #{item.issue}: {item.reason}
+                  </p>
+                ))}
+              </div>
+            )}
+            {previewCurrent && preview.isError && (
+              <p role="alert">Eligibility check failed. Retry after checking repository access.</p>
+            )}
             <label>
               Task limit{" "}
               <input
@@ -508,8 +553,8 @@ export function QueueManifest({
               />
             </label>
             <p role="status">
-              Coding execution is not connected yet. OP-007 will own the start request, and OP-008
-              will connect the provider.
+              Admission is available for inspection. Coding execution remains unavailable until the
+              provider adapter is connected.
             </p>
             <Button disabled>Start unavailable</Button>
           </div>
