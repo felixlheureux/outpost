@@ -13,7 +13,44 @@ import (
 	"testing"
 
 	"github.com/felixlheureux/outpost/internal/store"
+	"github.com/felixlheureux/outpost/internal/worker"
 )
+
+func TestWorkCheckLivenessUsesRecordedProcessIdentity(t *testing.T) {
+	db, state := activityFixture(t)
+	defer db.Close()
+	ctx := context.Background()
+	if _, err := db.DB.ExecContext(ctx, `INSERT INTO run_schedules(run_id,kind,mode,scope_json,policy_json,instructions,task_limit,created_at) VALUES('r','task','single','[9]','{}','',1,'now')`); err != nil {
+		t.Fatal(err)
+	}
+	ticks, err := worker.StartTicks(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.DB.ExecContext(ctx, `INSERT INTO check_receipts(id,assignment_id,attempt_id,generation,check_id,name,required,command_json,contract_digest,input_digest,status,pid,start_ticks,started_at,output_path,terminal_path) VALUES('check-live','a','attempt',1,'test','Tests',1,'["test"]','contract','input','running',?,?,'now','/tmp/check-live.log','/tmp/check-live.json')`, os.Getpid(), ticks); err != nil {
+		t.Fatal(err)
+	}
+	handler := NewWithRepositorySetup(db, nil, "test", slog.New(slog.NewTextHandler(io.Discard, nil)), nil, state, "")
+	get := func() string {
+		req := httptest.NewRequest("GET", "http://localhost/api/v1/runs/r/work", nil)
+		req.Host = "localhost"
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != 200 {
+			t.Fatalf("work: %d %s", rec.Code, rec.Body.String())
+		}
+		return rec.Body.String()
+	}
+	if body := get(); !strings.Contains(body, `"liveness":"active"`) {
+		t.Fatalf("owned check not observed: %s", body)
+	}
+	if _, err := db.DB.ExecContext(ctx, `UPDATE check_receipts SET start_ticks='different' WHERE id='check-live'`); err != nil {
+		t.Fatal(err)
+	}
+	if body := get(); !strings.Contains(body, `"liveness":"stopped"`) {
+		t.Fatalf("reused PID accepted: %s", body)
+	}
+}
 
 func TestWorkRoutesKeepTargetAndIdempotentReceipt(t *testing.T) {
 	db, state := activityFixture(t)

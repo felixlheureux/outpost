@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 )
 
 // HistoryRun is a bounded projection of durable receipts, never a new task source.
@@ -36,6 +37,45 @@ type HistoryAssignment struct {
 	CreatedAt     string           `json:"created_at"`
 	SettledAt     string           `json:"settled_at"`
 	Attempts      []HistoryAttempt `json:"attempts"`
+	Checks        []HistoryCheck   `json:"checks"`
+	Messages      []HistoryMessage `json:"messages"`
+	Delivery      *HistoryDelivery `json:"delivery"`
+	Report        *HistoryReport   `json:"report"`
+}
+
+type HistoryCheck struct {
+	ID              string `json:"id"`
+	AttemptID       string `json:"attempt_id"`
+	Name            string `json:"name"`
+	Status          string `json:"status"`
+	Reason          string `json:"reason"`
+	Required        bool   `json:"required"`
+	CandidateDigest string `json:"candidate_digest"`
+	FinishedAt      string `json:"finished_at"`
+}
+
+type HistoryMessage struct {
+	ID            string `json:"id"`
+	AttemptID     string `json:"attempt_id"`
+	TurnID        string `json:"turn_id"`
+	Body          string `json:"body"`
+	BodyTruncated bool   `json:"body_truncated"`
+	State         string `json:"state"`
+	Reason        string `json:"reason"`
+	CreatedAt     string `json:"created_at"`
+}
+
+type HistoryDelivery struct {
+	Policy    string `json:"policy"`
+	State     string `json:"state"`
+	Reason    string `json:"reason"`
+	CommitSHA string `json:"commit_sha"`
+}
+
+type HistoryReport struct {
+	State     string `json:"state"`
+	Reason    string `json:"reason"`
+	CommentID int64  `json:"comment_id"`
 }
 
 type HistoryAttempt struct {
@@ -49,6 +89,9 @@ type HistoryAttempt struct {
 	Reasoning      string `json:"reasoning"`
 	Sandbox        string `json:"sandbox"`
 	ApprovalPolicy string `json:"approval_policy"`
+	PredecessorID  string `json:"predecessor_id"`
+	ThreadID       string `json:"thread_id"`
+	TurnID         string `json:"turn_id"`
 	CreatedAt      string `json:"created_at"`
 	SettledAt      string `json:"settled_at"`
 }
@@ -133,6 +176,8 @@ func (s *Store) HistoryDetail(ctx context.Context, runID string) (HistoryRun, er
 		_ = json.Unmarshal([]byte(snapshot), &brief)
 		a.Title, a.IssueDigest, a.IssueRevision, a.QueueSHA, a.BaselineHead, a.Branch, a.SettledAt = brief.Title, brief.IssueDigest, brief.IssueRevision, brief.QueueSHA, brief.Head, brief.Branch, settled.String
 		a.Attempts = []HistoryAttempt{}
+		a.Checks = []HistoryCheck{}
+		a.Messages = []HistoryMessage{}
 		r.Assignments = append(r.Assignments, a)
 	}
 	if err == nil {
@@ -143,14 +188,14 @@ func (s *Store) HistoryDetail(ctx context.Context, runID string) (HistoryRun, er
 		return r, err
 	}
 	for i := range r.Assignments {
-		attempts, queryErr := s.DB.QueryContext(ctx, `SELECT t.id,t.ordinal,t.phase,t.outcome,COALESCE(p.state,''),COALESCE(p.failure_code,''),COALESCE(p.model,''),COALESCE(p.reasoning,''),COALESCE(p.sandbox,''),COALESCE(p.approval_policy,''),t.created_at,t.settled_at FROM assignment_attempts t LEFT JOIN provider_attempts p ON p.attempt_id=t.id WHERE t.assignment_id=? ORDER BY t.ordinal DESC LIMIT 100`, r.Assignments[i].ID)
+		attempts, queryErr := s.DB.QueryContext(ctx, `SELECT t.id,t.ordinal,t.phase,t.outcome,COALESCE(p.state,''),COALESCE(p.failure_code,''),COALESCE(p.model,''),COALESCE(p.reasoning,''),COALESCE(p.sandbox,''),COALESCE(p.approval_policy,''),COALESCE(t.predecessor_id,''),COALESCE(p.thread_id,''),COALESCE(p.turn_id,''),t.created_at,t.settled_at FROM assignment_attempts t LEFT JOIN provider_attempts p ON p.attempt_id=t.id WHERE t.assignment_id=? ORDER BY t.ordinal DESC LIMIT 30`, r.Assignments[i].ID)
 		if queryErr != nil {
 			return r, queryErr
 		}
 		for attempts.Next() {
 			var a HistoryAttempt
 			var settled sql.NullString
-			if err = attempts.Scan(&a.ID, &a.Ordinal, &a.Phase, &a.Outcome, &a.ProviderState, &a.FailureCode, &a.Model, &a.Reasoning, &a.Sandbox, &a.ApprovalPolicy, &a.CreatedAt, &settled); err != nil {
+			if err = attempts.Scan(&a.ID, &a.Ordinal, &a.Phase, &a.Outcome, &a.ProviderState, &a.FailureCode, &a.Model, &a.Reasoning, &a.Sandbox, &a.ApprovalPolicy, &a.PredecessorID, &a.ThreadID, &a.TurnID, &a.CreatedAt, &settled); err != nil {
 				break
 			}
 			a.SettledAt = settled.String
@@ -163,6 +208,55 @@ func (s *Store) HistoryDetail(ctx context.Context, runID string) (HistoryRun, er
 		if err != nil {
 			return r, err
 		}
+		checks, queryErr := s.DB.QueryContext(ctx, `SELECT id,attempt_id,name,status,reason,required,candidate_digest,finished_at FROM check_receipts WHERE assignment_id=? ORDER BY started_at DESC,id DESC LIMIT 30`, r.Assignments[i].ID)
+		if queryErr != nil {
+			return r, queryErr
+		}
+		for checks.Next() {
+			var item HistoryCheck
+			if err = checks.Scan(&item.ID, &item.AttemptID, &item.Name, &item.Status, &item.Reason, &item.Required, &item.CandidateDigest, &item.FinishedAt); err != nil {
+				break
+			}
+			r.Assignments[i].Checks = append(r.Assignments[i].Checks, item)
+		}
+		if err == nil {
+			err = checks.Err()
+		}
+		checks.Close()
+		if err != nil {
+			return r, err
+		}
+		messages, queryErr := s.DB.QueryContext(ctx, `SELECT id,attempt_id,expected_turn_id,substr(body,1,512),length(body)>512,state,reason,created_at FROM work_messages WHERE assignment_id=? ORDER BY created_at DESC,id DESC LIMIT 30`, r.Assignments[i].ID)
+		if queryErr != nil {
+			return r, queryErr
+		}
+		for messages.Next() {
+			var item HistoryMessage
+			if err = messages.Scan(&item.ID, &item.AttemptID, &item.TurnID, &item.Body, &item.BodyTruncated, &item.State, &item.Reason, &item.CreatedAt); err != nil {
+				break
+			}
+			r.Assignments[i].Messages = append(r.Assignments[i].Messages, item)
+		}
+		if err == nil {
+			err = messages.Err()
+		}
+		messages.Close()
+		if err != nil {
+			return r, err
+		}
+		var delivery HistoryDelivery
+		if err = s.DB.QueryRowContext(ctx, `SELECT policy,state,reason,commit_sha FROM delivery_receipts WHERE assignment_id=?`, r.Assignments[i].ID).Scan(&delivery.Policy, &delivery.State, &delivery.Reason, &delivery.CommitSHA); err == nil {
+			r.Assignments[i].Delivery = &delivery
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return r, err
+		}
+		var report HistoryReport
+		if err = s.DB.QueryRowContext(ctx, `SELECT state,reason,comment_id FROM github_reports WHERE assignment_id=?`, r.Assignments[i].ID).Scan(&report.State, &report.Reason, &report.CommentID); err == nil {
+			r.Assignments[i].Report = &report
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return r, err
+		}
+		err = nil
 	}
 	return r, nil
 }

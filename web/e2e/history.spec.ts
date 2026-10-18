@@ -75,6 +75,9 @@ test("history keeps old attempts read only and exposes recovery evidence", async
                 reasoning: "low",
                 sandbox: "workspace-write",
                 approval_policy: "on-request",
+                predecessor_id: "attempt-1",
+                thread_id: "thread-2",
+                turn_id: "turn-2",
                 created_at: at,
                 settled_at: at,
               },
@@ -89,10 +92,39 @@ test("history keeps old attempts read only and exposes recovery evidence", async
                 reasoning: "low",
                 sandbox: "workspace-write",
                 approval_policy: "on-request",
+                predecessor_id: "",
+                thread_id: "thread-1",
+                turn_id: "turn-1",
                 created_at: at,
                 settled_at: at,
               },
             ],
+            checks: [
+              {
+                id: "check-1",
+                attempt_id: "attempt-1",
+                name: "Tests",
+                status: "failed",
+                reason: "case failure",
+                required: true,
+                candidate_digest: "candidate",
+                finished_at: at,
+              },
+            ],
+            messages: [
+              {
+                id: "message-1",
+                attempt_id: "attempt-1",
+                turn_id: "turn-1",
+                body: "Please inspect tests",
+                body_truncated: false,
+                state: "accepted",
+                reason: "",
+                created_at: at,
+              },
+            ],
+            delivery: null,
+            report: null,
           },
         ],
       },
@@ -177,6 +209,9 @@ test("history keeps old attempts read only and exposes recovery evidence", async
   await page.getByRole("button", { name: "View details" }).click();
   await expect(page.getByText("Attempt 2 · blocked")).toBeVisible();
   await expect(page.getByText("Attempt 1 · interrupted")).toBeVisible();
+  await expect(page.getByText(/turn: turn-2/)).toBeVisible();
+  await expect(page.getByText(/Tests: failed/)).toBeVisible();
+  await expect(page.getByText(/Please inspect tests/)).toBeVisible();
   await expect(page.getByText(/queue revision: manifest-sha/)).toBeVisible();
   await expect(
     page.getByText("Historical receipts are read only. Controls belong to current Work."),

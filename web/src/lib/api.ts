@@ -85,6 +85,9 @@ const historyAttempt = z.object({
   reasoning: z.string(),
   sandbox: z.string(),
   approval_policy: z.string(),
+  predecessor_id: z.string(),
+  thread_id: z.string(),
+  turn_id: z.string(),
   created_at: z.string(),
   settled_at: z.string(),
 });
@@ -101,6 +104,34 @@ const historyAssignment = z.object({
   created_at: z.string(),
   settled_at: z.string(),
   attempts: z.array(historyAttempt),
+  checks: z.array(
+    z.object({
+      id: z.string(),
+      attempt_id: z.string(),
+      name: z.string(),
+      status: z.string(),
+      reason: z.string(),
+      required: z.boolean(),
+      candidate_digest: z.string(),
+      finished_at: z.string(),
+    }),
+  ),
+  messages: z.array(
+    z.object({
+      id: z.string(),
+      attempt_id: z.string(),
+      turn_id: z.string(),
+      body: z.string(),
+      body_truncated: z.boolean(),
+      state: z.string(),
+      reason: z.string(),
+      created_at: z.string(),
+    }),
+  ),
+  delivery: z
+    .object({ policy: z.string(), state: z.string(), reason: z.string(), commit_sha: z.string() })
+    .nullable(),
+  report: z.object({ state: z.string(), reason: z.string(), comment_id: z.number() }).nullable(),
 });
 const historyRun = z.object({
   id: z.string(),
@@ -153,6 +184,26 @@ export function historyArtifactsQuery(runID: string) {
     queryKey: ["history", "run", runID, "artifacts"],
     queryFn: () => request(`/history/${encodeURIComponent(runID)}/artifacts`, historyArtifacts),
     enabled: Boolean(runID),
+  });
+}
+const historicalMessage = z.object({
+  id: z.string(),
+  attempt_id: z.string(),
+  turn_id: z.string(),
+  body: z.string(),
+  state: z.string(),
+  reason: z.string(),
+});
+export function historicalMessageQuery(runID: string, messageID: string) {
+  return queryOptions({
+    queryKey: ["history", "run", runID, "message", messageID],
+    queryFn: () =>
+      request(
+        `/history/${encodeURIComponent(runID)}/messages/${encodeURIComponent(messageID)}`,
+        historicalMessage,
+      ),
+    enabled: Boolean(runID && messageID),
+    retry: false,
   });
 }
 export function removeArtifact(id: string) {
@@ -363,6 +414,7 @@ const workOverview = z.object({
       required: z.boolean(),
       status: z.string(),
       reason: z.string(),
+      liveness: z.string().optional(),
       input_digest: z.string(),
       candidate_digest: z.string(),
       contract_digest: z.string(),

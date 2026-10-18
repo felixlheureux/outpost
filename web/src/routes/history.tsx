@@ -7,13 +7,13 @@ import {
   activityPageQuery,
   bootstrapQuery,
   diagnosticsQuery,
+  historicalMessageQuery,
   historyArtifactsQuery,
   historyDetailQuery,
   historyQuery,
   projectsQuery,
   removeArtifact,
   retryReports,
-  workOverviewQuery,
 } from "@/lib/api";
 
 export const Route = createFileRoute("/history")({ component: HistoryPage });
@@ -37,11 +37,6 @@ function HistoryPage() {
   const list = useQuery(historyQuery(project?.id ?? "", offset));
   const visibleRunID = list.data?.runs.some((run) => run.id === selectedRun) ? selectedRun : "";
   const detail = useQuery(historyDetailQuery(visibleRunID));
-  const work = useQuery({
-    ...workOverviewQuery(visibleRunID),
-    enabled: Boolean(visibleRunID && detail.data?.assignment_count),
-    refetchInterval: false,
-  });
   const activity = useQuery({ ...activityPageQuery(visibleRunID), enabled: Boolean(visibleRunID) });
   const artifacts = useQuery(historyArtifactsQuery(visibleRunID));
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery);
@@ -199,7 +194,49 @@ function HistoryPage() {
                         {` · ${attempt.approval_policy || "Approval policy not recorded"}`}
                       </small>
                       {attempt.failure_code ? <small>Failure: {attempt.failure_code}</small> : null}
+                      <small>
+                        Saved thread: {attempt.thread_id || "Not recorded"} · turn:{" "}
+                        {attempt.turn_id || "Not recorded"}
+                        {attempt.predecessor_id ? ` · follows ${attempt.predecessor_id}` : ""}
+                      </small>
                     </div>
+                  ))}
+                  {assignment.checks.map((check) => (
+                    <p key={check.id}>
+                      Check · attempt {check.attempt_id} · {check.name}: {check.status}
+                      {check.reason ? ` · ${check.reason}` : ""} ·{" "}
+                      <a
+                        href={`/api/v1/runs/${encodeURIComponent(run.id)}/checks/${encodeURIComponent(check.id)}/output`}
+                      >
+                        Output receipt
+                      </a>
+                    </p>
+                  ))}
+                  {assignment.delivery ? (
+                    <p>
+                      Delivery: {assignment.delivery.state} · {assignment.delivery.policy}
+                      {assignment.delivery.commit_sha ? ` · ${assignment.delivery.commit_sha}` : ""}
+                      {assignment.delivery.reason ? ` · ${assignment.delivery.reason}` : ""}
+                    </p>
+                  ) : null}
+                  {assignment.report ? (
+                    <p>
+                      GitHub report: {assignment.report.state}
+                      {assignment.report.comment_id
+                        ? ` · comment ${assignment.report.comment_id}`
+                        : ""}
+                      {assignment.report.reason ? ` · ${assignment.report.reason}` : ""}
+                    </p>
+                  ) : null}
+                  {assignment.messages.map((message) => (
+                    <p key={message.id}>
+                      Instruction · attempt {message.attempt_id} · turn {message.turn_id || "next"}{" "}
+                      · {message.state}: {message.body}
+                      {message.body_truncated ? (
+                        <HistoricalMessage runID={run.id} messageID={message.id} />
+                      ) : null}
+                      {message.reason ? ` · ${message.reason}` : ""}
+                    </p>
                   ))}
                 </section>
               ))}
@@ -208,60 +245,34 @@ function HistoryPage() {
                   No assignment was admitted. Launch observation: {detail.data.launch_observation}.
                 </p>
               ) : null}
-              {work.data ? (
-                <section className="work-brief">
-                  <h3>Latest assignment receipts</h3>
-                  {work.data.checks.map((check) => (
-                    <p key={check.id}>
-                      {check.name}: {check.status}
-                      {check.reason ? ` · ${check.reason}` : ""}
-                    </p>
-                  ))}
-                  {work.data.delivery ? (
-                    <p>
-                      Delivery: {work.data.delivery.state} · {work.data.delivery.policy}
-                      {work.data.delivery.reason ? ` · ${work.data.delivery.reason}` : ""}
-                    </p>
-                  ) : null}
-                  {work.data.report ? (
-                    <p>
-                      GitHub report: {work.data.report.state}
-                      {work.data.report.reason ? ` · ${work.data.report.reason}` : ""}
-                    </p>
-                  ) : null}
-                  {work.data.messages.map((message) => (
-                    <p key={message.id}>
-                      Instruction {message.state}: {message.body}
-                    </p>
-                  ))}
-                  {run.reservation_state === "released" ? (
-                    <div className="work-control-row">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          setReportStatus("Checking GitHub report receipts…");
-                          try {
-                            const result = await retryReports(run.id);
-                            setReportStatus(
-                              `${result.settled} pending report${result.settled === 1 ? "" : "s"} settled.`,
-                            );
-                            await client.invalidateQueries({ queryKey: ["runs", run.id, "work"] });
-                          } catch (error) {
-                            setReportStatus(
-                              error instanceof Error
-                                ? error.message
-                                : "Reporting is still pending.",
-                            );
-                          }
-                        }}
-                      >
-                        Retry pending GitHub reports
-                      </Button>
-                      {reportStatus ? <span role="status">{reportStatus}</span> : null}
-                    </div>
-                  ) : null}
-                </section>
+              {run.reservation_state === "released" &&
+              detail.data?.assignments.some(
+                (assignment) =>
+                  assignment.report?.state !== "settled" && assignment.state === "succeeded",
+              ) ? (
+                <div className="work-control-row">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      setReportStatus("Checking GitHub report receipts…");
+                      try {
+                        const result = await retryReports(run.id);
+                        setReportStatus(
+                          `${result.settled} pending report${result.settled === 1 ? "" : "s"} settled.`,
+                        );
+                        await client.invalidateQueries({ queryKey: ["history", "run", run.id] });
+                      } catch (error) {
+                        setReportStatus(
+                          error instanceof Error ? error.message : "Reporting is still pending.",
+                        );
+                      }
+                    }}
+                  >
+                    Retry pending GitHub reports
+                  </Button>
+                  {reportStatus ? <span role="status">{reportStatus}</span> : null}
+                </div>
               ) : null}
               <section className="work-brief">
                 <h3>Recent activity</h3>
@@ -373,5 +384,22 @@ function HistoryPage() {
         </Button>
       ) : null}
     </section>
+  );
+}
+
+function HistoricalMessage({ runID, messageID }: { runID: string; messageID: string }) {
+  const [open, setOpen] = useState(false);
+  const message = useQuery({ ...historicalMessageQuery(runID, messageID), enabled: open });
+  return (
+    <span>
+      {" "}
+      <Button size="sm" variant="ghost" onClick={() => setOpen(!open)}>
+        {open ? "Hide full message" : "Read full message"}
+      </Button>
+      {open && message.data ? <span>{message.data.body}</span> : null}
+      {open && message.isError ? (
+        <span role="alert">Message unavailable: {message.error.message}</span>
+      ) : null}
+    </span>
   );
 }

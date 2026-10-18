@@ -11,6 +11,7 @@ import (
 
 	"github.com/felixlheureux/outpost/internal/store"
 	"github.com/felixlheureux/outpost/internal/validation"
+	"github.com/felixlheureux/outpost/internal/worker"
 	"github.com/labstack/echo/v5"
 )
 
@@ -72,7 +73,21 @@ func registerWorkRoutes(e *echo.Echo, db *store.Store, stateDir string) {
 				if item.CaseCount.Valid {
 					caseCount = item.CaseCount.Int64
 				}
-				checks = append(checks, map[string]any{"id": item.ID, "check_id": item.CheckID, "name": item.Name, "required": item.Required, "status": item.Status, "reason": item.Reason, "input_digest": item.InputDigest, "candidate_digest": item.CandidateDigest, "contract_digest": item.ContractDigest, "duration_ms": item.DurationMS, "exit_code": exitCode, "signal": item.Signal, "case_count": caseCount, "require_cases": item.RequireCases, "started_at": item.StartedAt, "finished_at": item.FinishedAt, "pid": item.PID, "output_bytes": item.OutputBytes, "truncated": item.Truncated})
+				liveness := "unknown"
+				if item.Status != "running" && item.Status != "unknown" {
+					liveness = "settled"
+				} else if item.PID > 0 && item.StartTicks != "" {
+					if ticks, observeErr := worker.StartTicks(item.PID); observeErr == nil {
+						if ticks == item.StartTicks {
+							liveness = "active"
+						} else {
+							liveness = "stopped"
+						}
+					} else if os.IsNotExist(observeErr) {
+						liveness = "stopped"
+					}
+				}
+				checks = append(checks, map[string]any{"id": item.ID, "check_id": item.CheckID, "name": item.Name, "required": item.Required, "status": item.Status, "reason": item.Reason, "liveness": liveness, "input_digest": item.InputDigest, "candidate_digest": item.CandidateDigest, "contract_digest": item.ContractDigest, "duration_ms": item.DurationMS, "exit_code": exitCode, "signal": item.Signal, "case_count": caseCount, "require_cases": item.RequireCases, "started_at": item.StartedAt, "finished_at": item.FinishedAt, "pid": item.PID, "output_bytes": item.OutputBytes, "truncated": item.Truncated})
 			}
 		}
 		if overview.AssignmentID != "" {
@@ -88,7 +103,7 @@ func registerWorkRoutes(e *echo.Echo, db *store.Store, stateDir string) {
 					if seenChecks[item.ID] {
 						continue
 					}
-					checks = append(checks, map[string]any{"id": "not-run-" + item.ID, "check_id": item.ID, "name": item.Name, "required": item.Required, "status": "not-run", "reason": "Awaiting runner validation", "input_digest": "", "candidate_digest": "", "contract_digest": "", "duration_ms": 0, "exit_code": nil, "signal": "", "case_count": nil, "require_cases": item.RequireCases, "started_at": "", "finished_at": "", "pid": 0, "output_bytes": 0, "truncated": false})
+					checks = append(checks, map[string]any{"id": "not-run-" + item.ID, "check_id": item.ID, "name": item.Name, "required": item.Required, "status": "not-run", "reason": "Awaiting runner validation", "liveness": "not-started", "input_digest": "", "candidate_digest": "", "contract_digest": "", "duration_ms": 0, "exit_code": nil, "signal": "", "case_count": nil, "require_cases": item.RequireCases, "started_at": "", "finished_at": "", "pid": 0, "output_bytes": 0, "truncated": false})
 				}
 			}
 		}

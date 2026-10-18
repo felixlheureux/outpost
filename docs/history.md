@@ -12,7 +12,9 @@ way. Provider interruption or failure uses the existing scoped continuation
 control. Missing saved session identity offers only a fresh linked conversation.
 Queue/source failures link to Queue sync, check failures to Checks output,
 checkout/baseline failures to Changes, and unsettled process ownership requires
-observation or the scoped Work stop flow. Reporting is independent of coding:
+observation or the scoped Work stop flow. A running check is marked active only
+when its PID and recorded process start identity both match; a missing or reused
+PID is stopped, while an unavailable observation remains unknown. Reporting is independent of coding:
 after a run's reservation is released, History's **Retry pending GitHub
 reports** reuses the durable report marker and original close-issue policy.
 Delivery recovery still uses `outpost delivery recover --run-id ID` because it
@@ -26,8 +28,10 @@ a device can reach the dashboard or that a particular GitHub write will pass.
 Unavailable host calls are reported as unknown or unavailable, never stopped.
 The panel does not return paths, tokens, command output, or source error text.
 
-History lists at most 30 runs per page, 100 assignments/attempts in a detail,
-100 recent activity events, and 100 artifact records. Earlier activity is
+History lists at most 30 runs per page, 100 assignments and 30 attempts,
+checks, and messages per assignment in a detail, 100 recent activity events,
+and 100 artifact records. Message previews are capped at 512 characters;
+the exact full message is read by its scoped receipt on demand. Earlier activity is
 available through the paged activity API. Retained provider output can be
 downloaded by artifact ID. **Remove output** requires a released run and a
 settled assignment; the server's allowlisted artifact path guard and retention

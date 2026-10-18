@@ -63,6 +63,20 @@ func registerHistoryRoutes(e *echo.Echo, db *store.Store) {
 		c.Response().Header().Set("Cache-Control", "no-store")
 		return c.JSON(200, map[string]any{"artifacts": items})
 	})
+	e.GET("/api/v1/history/:id/messages/:message", func(c *echo.Context) error {
+		item, err := db.GetWorkMessage(c.Request().Context(), c.Param("message"))
+		if errors.Is(err, sql.ErrNoRows) {
+			return fail(c, 404, "message_not_found", "Message was not found in this run.")
+		}
+		if err != nil {
+			return err
+		}
+		if item.RunID != c.Param("id") {
+			return fail(c, 404, "message_not_found", "Message was not found in this run.")
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.JSON(200, map[string]any{"id": item.ID, "attempt_id": item.AttemptID, "turn_id": item.ExpectedTurnID, "body": item.Body, "state": item.State, "reason": item.Reason})
+	})
 	e.POST("/api/v1/runs/:id/reports/retry", func(c *echo.Context) error {
 		reportMu.Lock()
 		defer reportMu.Unlock()

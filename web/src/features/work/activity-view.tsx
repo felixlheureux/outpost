@@ -245,10 +245,16 @@ export function ActivityView({ runID }: { runID: string }) {
   const pendingReceipt = state?.messages.find((item) => item.id === pendingID);
   const workerLiveness =
     bootstrap.data?.current_run?.id === runID ? bootstrap.data.current_run.liveness : "unknown";
+  const survivingCheck = state?.checks.find((check) => check.liveness === "active");
   const attention =
     state?.schedule_outcome && state.schedule_outcome !== "active"
       ? state.schedule_reason || `Run ${state.schedule_outcome}`
-      : state?.provider_failure_code || (canContinue ? `Provider ${state.provider_state}` : "");
+      : state?.provider_failure_code ||
+        (canContinue
+          ? `Provider ${state.provider_state}`
+          : survivingCheck
+            ? `Check ${survivingCheck.name} is still running`
+            : "");
   const attentionKind = attention.toLowerCase();
 
   async function submitInstructions() {
@@ -567,6 +573,13 @@ export function ActivityView({ runID }: { runID: string }) {
                 recorded receipts remain available. An unavailable observation does not prove the
                 worker stopped.
               </p>
+              {survivingCheck ? (
+                <p>
+                  Check process {survivingCheck.pid} is still observed with its recorded start
+                  identity. Keep the workspace reserved until it settles; inspect its output in
+                  Checks.
+                </p>
+              ) : null}
               {canContinue ? (
                 <p>
                   {canResume
