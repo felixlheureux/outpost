@@ -12,15 +12,19 @@ import (
 	"github.com/felixlheureux/outpost/internal/codexadapter"
 	"github.com/felixlheureux/outpost/internal/store"
 	"github.com/felixlheureux/outpost/internal/supervisor"
+	"github.com/felixlheureux/outpost/internal/validation"
 	"github.com/spf13/cobra"
 )
 
 func addRun(root *cobra.Command, stateDir *string, out io.Writer) {
-	var projectID, model, reasoning, instructions, requestKey string
+	var projectID, model, reasoning, instructions, requestKey, checkProfileFile, checkProfileName string
 	var fixedIssue, limit int
 	cmd := &cobra.Command{Use: "run", Short: "Reserve and launch one owned Codex task", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		if projectID == "" || model == "" || reasoning == "" || limit < 1 || limit > 100 || fixedIssue < 0 || !filepath.IsAbs(*stateDir) {
 			return fmt.Errorf("run requires a project, discovered model/reasoning, valid task limit and absolute state directory")
+		}
+		if checkProfileFile != "" && checkProfileName != "" {
+			return fmt.Errorf("choose either a configured check profile or a profile file")
 		}
 		ctx := cmd.Context()
 		db, err := store.Open(ctx, *stateDir)
@@ -59,6 +63,23 @@ func addRun(root *cobra.Command, stateDir *string, out io.Writer) {
 		if !valid {
 			return fmt.Errorf("model/reasoning is absent from the installed Codex catalog")
 		}
+		var profile validation.Profile
+		if checkProfileFile != "" {
+			profile, err = validation.Load(checkProfileFile)
+		} else {
+			var raw string
+			if checkProfileName != "" {
+				raw, err = db.GetCheckProfile(ctx, projectID, checkProfileName)
+			} else {
+				raw, err = db.DefaultCheckProfile(ctx, projectID)
+			}
+			if err == nil {
+				profile, err = validation.Parse([]byte(raw))
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("load configured project check profile: %w", err)
+		}
 		if requestKey == "" {
 			b := make([]byte, 16)
 			if _, err := rand.Read(b); err != nil {
@@ -71,7 +92,7 @@ func addRun(root *cobra.Command, stateDir *string, out io.Writer) {
 			mode, scope = "fixed", []int{fixedIssue}
 		}
 		scopeJSON, _ := json.Marshal(scope)
-		policyJSON, _ := json.Marshal(map[string]any{"agent": map[string]string{"model": model, "reasoning": reasoning, "sandbox": "workspace-write", "approval_policy": "on-request"}})
+		policyJSON, _ := json.Marshal(map[string]any{"agent": map[string]string{"model": model, "reasoning": reasoning, "sandbox": "workspace-write", "approval_policy": "on-request"}, "check_profile": profile})
 		run, replay, err := db.ReserveScheduledRun(ctx, projectID, project.WorkspacePath, requestKey, store.Schedule{Kind: "queue", Mode: mode, ScopeJSON: string(scopeJSON), PolicyJSON: string(policyJSON), Instructions: instructions, TaskLimit: limit})
 		if err != nil {
 			return err
@@ -96,6 +117,8 @@ func addRun(root *cobra.Command, stateDir *string, out io.Writer) {
 	cmd.Flags().StringVar(&reasoning, "reasoning", "", "Supported reasoning effort for the selected model")
 	cmd.Flags().StringVar(&instructions, "instructions", "", "Operator directions for the pinned assignment")
 	cmd.Flags().StringVar(&requestKey, "request-key", "", "Idempotency key for this launch")
+	cmd.Flags().StringVar(&checkProfileFile, "check-profile-file", "", "Operator-owned JSON check profile captured with this run")
+	cmd.Flags().StringVar(&checkProfileName, "check-profile", "", "Configured project check profile; defaults to the project default")
 	cmd.Flags().IntVar(&fixedIssue, "fixed-issue", 0, "Run only this queued issue; otherwise follow queue")
 	cmd.Flags().IntVar(&limit, "task-limit", 1, "Maximum completed tasks")
 	root.AddCommand(cmd)

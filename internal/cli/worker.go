@@ -3,8 +3,10 @@ package cli
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/felixlheureux/outpost/internal/providerwork"
 	"github.com/felixlheureux/outpost/internal/scheduler"
 	"github.com/felixlheureux/outpost/internal/store"
+	"github.com/felixlheureux/outpost/internal/validation"
 	"github.com/felixlheureux/outpost/internal/worker"
 	"github.com/spf13/cobra"
 )
@@ -58,9 +61,57 @@ func addWorker(root *cobra.Command, stateDir *string) {
 					if err != nil {
 						return "", "", err
 					}
-					// OP-011 validates the provider's proposed result. Hold the
-					// assignment and workspace; a model claim cannot settle it.
-					return "", "", fmt.Errorf("provider handoff is ready; validation and delivery have not settled")
+					var policy struct {
+						CheckProfile validation.Profile `json:"check_profile"`
+					}
+					if err := json.Unmarshal([]byte(schedule.PolicyJSON), &policy); err != nil {
+						return "", "", err
+					}
+					if policy.CheckProfile.RepairLimit == 0 {
+						policy.CheckProfile.RepairLimit = 3
+					}
+					binary, binaryErr := os.Executable()
+					if binaryErr != nil {
+						return "", "", binaryErr
+					}
+					checks := validation.Runner{DB: db, StateDir: *stateDir, Workspace: run.WorkspacePath, Executable: binary, Lock: lock}
+					for cycle := 0; ; cycle++ {
+						result, runErr := checks.Run(ctx, a, schedule)
+						if runErr != nil {
+							return "", "", runErr
+						}
+						if result.Passed {
+							if err := db.RecordCheckSuccess(ctx, a.ID, result.ReceiptID); err != nil {
+								return "", "", err
+							}
+							if err := db.AdvanceAttemptPhase(ctx, a.ID, "validating", "closing"); err != nil {
+								return "", "", err
+							}
+							return "", "", fmt.Errorf("validation passed for candidate %s; Git delivery has not settled", result.Candidate)
+						}
+						if result.Repeated {
+							return "", "", fmt.Errorf("unchanged check failure: %s", result.Failure)
+						}
+						if cycle >= policy.CheckProfile.RepairLimit-1 {
+							return "", "", fmt.Errorf("repair limit reached: %s", result.Failure)
+						}
+						if repeated, repeatErr := db.RepeatedCheckFailure(ctx, a.ID, result.ReceiptID); repeatErr != nil {
+							return "", "", repeatErr
+						} else if repeated {
+							return "", "", fmt.Errorf("unchanged repeated check failure: %s", result.Failure)
+						}
+						evidence, evidenceErr := checks.FailureEvidence(ctx, a.ID)
+						if evidenceErr != nil {
+							return "", "", evidenceErr
+						}
+						_, thread, beginErr := db.BeginRepair(ctx, a.ID)
+						if beginErr != nil {
+							return "", "", beginErr
+						}
+						if _, err := providerwork.ExecuteContinuation(ctx, db, *stateDir, codexPath, a, schedule, run.WorkspacePath, thread, "Runner-owned check failure. Repair the same pinned assignment and preserve prior source identity.\n"+evidence); err != nil {
+							return "", "", err
+						}
+					}
 				})
 				return err
 			}()

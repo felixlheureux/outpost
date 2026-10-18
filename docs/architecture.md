@@ -7,8 +7,9 @@ private web service, worker ownership fixtures, managed GitHub cloning and an
 issue source projection with durable create/edit receipts, and a GitHub planning
 queue projection with durable edit receipts, the Queue/Inbox workspace, a
 durable scheduler with fresh-source admission and an eligibility preview, and
-a Codex App Server adapter with provider attempt and live control receipts. The browser Start
-control remains disabled until runner validation and delivery are connected.
+a Codex App Server adapter with provider attempt and live control receipts, and
+runner-owned local validation with private check artifacts and bounded repair.
+The browser Start control remains disabled until Git delivery is connected.
 The complete behavior contract remains the technical specification.
 
 ## Follow a request
@@ -35,6 +36,7 @@ or service layers for every table in advance.
 | `internal/scheduler` | Fresh manifest/dependency observation, eligibility, immutable assignment and fixture worker loop |
 | `internal/codexadapter` | Pinned Codex App Server stdio protocol, capability discovery, session controls and structured handoff |
 | `internal/providerwork` | Immutable prompt, private bounded event artifact and owned provider receipt transitions |
+| `internal/validation` | Captured check plans, candidate identity, owned child processes, terminal reconciliation and repair evidence |
 | `activity_events`, `activity_artifacts` | Bounded notifications and allowlisted private output manifest; see `docs/activity.md` |
 | `work_messages`, `work_controls` | Scoped live directions, stop and continuation receipts; see `docs/work.md` |
 | `internal/supervisor`, `internal/worker` | Recorded worker units, process identity and workspace exclusion |
@@ -110,9 +112,8 @@ the navigation into a top strip. Honor reduced motion and visible focus.
 
 ## Next integration points
 
-OP-010 supplies live instruction receipts, stop/interrupt and continuation controls.
-OP-011 owns runner-verified checks and OP-012 owns Git delivery. The browser
-Start control remains disabled until these completion boundaries are connected.
+OP-012 owns Git delivery after runner-verified checks. The browser Start
+control remains disabled until that completion boundary is connected.
 The Work activity stream reads real SQLite cursors and provider artifacts;
 `docs/activity.md` defines its reset, preview and retention rules. The private
 Serve cutover, owner-device acceptance and real GitHub planning-branch write

@@ -230,6 +230,29 @@ const workOverview = z.object({
   schedule_reason: z.string(),
   messages: z.array(workMessage),
   controls: z.array(workControl),
+  checks: z.array(
+    z.object({
+      id: z.string(),
+      check_id: z.string(),
+      name: z.string(),
+      required: z.boolean(),
+      status: z.string(),
+      reason: z.string(),
+      input_digest: z.string(),
+      candidate_digest: z.string(),
+      contract_digest: z.string(),
+      duration_ms: z.number(),
+      exit_code: z.number().nullable(),
+      signal: z.string(),
+      case_count: z.number().nullable(),
+      require_cases: z.boolean(),
+      started_at: z.string(),
+      finished_at: z.string(),
+      pid: z.number(),
+      output_bytes: z.number(),
+      truncated: z.boolean(),
+    }),
+  ),
   attempts: z
     .array(
       z.object({
@@ -245,6 +268,19 @@ const workOverview = z.object({
     .optional(),
 });
 export type WorkOverview = z.infer<typeof workOverview>;
+const checkOutput = z.object({ id: z.string(), output: z.string(), truncated: z.boolean() });
+export function checkOutputQuery(runID: string, receiptID: string) {
+  return queryOptions({
+    queryKey: ["runs", runID, "checks", receiptID, "output"],
+    queryFn: () =>
+      request(
+        `/runs/${encodeURIComponent(runID)}/checks/${encodeURIComponent(receiptID)}/output`,
+        checkOutput,
+      ),
+    enabled: Boolean(receiptID),
+    retry: false,
+  });
+}
 export function workOverviewQuery(runID: string) {
   return queryOptions({
     queryKey: ["runs", runID, "work"],

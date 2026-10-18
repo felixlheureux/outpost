@@ -144,6 +144,7 @@ test("Queue content stays inside its panels on desktop and phone", async ({ page
         schedule_reason: "",
         messages: [],
         controls: [],
+        checks: [],
       },
     }),
   );

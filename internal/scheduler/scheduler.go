@@ -16,6 +16,7 @@ import (
 	"github.com/felixlheureux/outpost/internal/issues"
 	"github.com/felixlheureux/outpost/internal/queue"
 	"github.com/felixlheureux/outpost/internal/store"
+	"github.com/felixlheureux/outpost/internal/validation"
 )
 
 type Reader interface {
@@ -318,7 +319,7 @@ func evaluate(schedule store.Schedule, manifest queue.Manifest, sha, fetchedAt s
 		case item.req.Settings.HoldReason != nil && *item.req.Settings.HoldReason != "":
 			wait.Code = "held"
 			wait.Reason = *item.req.Settings.HoldReason
-		case issues.ValidateProfileReference(item.req) != nil:
+		case !selectedProfile(schedule, item.req.Settings.CheckProfile):
 			wait.Code = "invalid_check_profile"
 			wait.Reason = "Issue check profile is not configured for this project."
 		default:
@@ -352,6 +353,16 @@ func evaluate(schedule store.Schedule, manifest queue.Manifest, sha, fetchedAt s
 		}
 	}
 	return p
+}
+
+func selectedProfile(schedule store.Schedule, selected string) bool {
+	var policy struct {
+		CheckProfile validation.Profile `json:"check_profile"`
+	}
+	if json.Unmarshal([]byte(schedule.PolicyJSON), &policy) != nil || policy.CheckProfile.ID == "" {
+		return selected == "inherit"
+	}
+	return selected == "inherit" || selected == policy.CheckProfile.ID
 }
 
 // Next refreshes the source, computes a projection, and atomically claims one

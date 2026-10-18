@@ -104,8 +104,42 @@ test("activity reconnect preserves the instructions draft and opened reader", as
         schedule_reason: "",
         messages,
         controls,
+        checks: [
+          {
+            id: "check_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            check_id: "test",
+            name: "Tests",
+            required: true,
+            status: "failed",
+            reason: "zero or unknown selected cases",
+            input_digest: "abcdef123456",
+            candidate_digest: "fedcba654321",
+            contract_digest: "112233445566",
+            duration_ms: 152,
+            exit_code: 0,
+            signal: "",
+            case_count: 0,
+            require_cases: true,
+            started_at: at,
+            finished_at: at,
+            pid: 44,
+            output_bytes: 9,
+            truncated: false,
+          },
+        ],
       },
     }),
+  );
+  await page.route(
+    "**/api/v1/runs/run_1/checks/check_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/output",
+    (route) =>
+      route.fulfill({
+        json: {
+          id: "check_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          output: "0 tests\n",
+          truncated: false,
+        },
+      }),
   );
   await page.route("**/api/v1/runs/run_1/messages", async (route) => {
     messageSubmissions += 1;
@@ -200,6 +234,11 @@ test("activity reconnect preserves the instructions draft and opened reader", as
     });
   });
   await page.goto("/work?project=p");
+  await page.getByRole("tab", { name: "Checks" }).click();
+  await expect(page.getByText("zero or unknown selected cases")).toBeVisible();
+  await page.getByRole("button", { name: "View retained output" }).click();
+  await expect(page.getByText("0 tests")).toBeVisible();
+  await page.getByRole("tab", { name: "Activity" }).click();
   const draft = page.getByLabel("Instructions for current turn");
   await draft.fill("Keep the unfinished note while I read.");
   await page.getByRole("button", { name: "Load older activity" }).click();

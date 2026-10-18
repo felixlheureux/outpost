@@ -286,7 +286,7 @@ func (s *Store) SubmitWorkControl(ctx context.Context, c WorkControl) (WorkContr
 		}
 		revisionResult, err = tx.ExecContext(ctx, `UPDATE run_schedules SET stop_requested=1,revision=revision+1 WHERE run_id=? AND revision=? AND outcome='active'`, c.RunID, revision)
 	case "continue":
-		if attemptOutcome != "running" || (providerState != "failed" && providerState != "interrupted" && providerState != "unknown" && providerState != "completed") || phase == "validating" && providerState == "completed" || (c.Mode == "resume" && thread == "") {
+		if attemptOutcome != "running" || phase != "implementing" || (providerState != "failed" && providerState != "interrupted" && providerState != "unknown" && providerState != "completed") || (c.Mode == "resume" && thread == "") {
 			return WorkControl{}, ErrStaleWorkTarget
 		}
 	}
@@ -464,7 +464,7 @@ func (s *Store) BeginContinuation(ctx context.Context, c WorkControl) (string, s
 	if err != nil {
 		return "", "", err
 	}
-	if outcome != "running" || (provider != "failed" && provider != "interrupted" && provider != "unknown" && provider != "completed") || (provider == "completed" && phase == "validating") || (c.Mode == "resume" && thread == "") {
+	if outcome != "running" || phase != "implementing" || (provider != "failed" && provider != "interrupted" && provider != "unknown" && provider != "completed") || (c.Mode == "resume" && thread == "") {
 		return "", "", ErrStaleWorkTarget
 	}
 	id, err := newRandomID("attempt_", 16)

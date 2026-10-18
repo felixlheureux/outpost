@@ -277,21 +277,16 @@ func (s *Store) AdvanceAttemptPhase(ctx context.Context, assignmentID, expected,
 	return nil
 }
 
-// RecordCompletionReceipt is the narrow handoff for OP-011/012's actual check
-// and delivery receipts. Their owning services must provide durable IDs.
+// RecordCompletionReceipt records a verified delivery receipt. Check receipts
+// use RecordCheckSuccess, which validates the runner-owned terminal row.
 func (s *Store) RecordCompletionReceipt(ctx context.Context, assignmentID, kind, receiptID string) error {
 	if receiptID == "" || len(receiptID) > 160 {
 		return fmt.Errorf("completion receipt identity is required")
 	}
-	column, phase := "", ""
-	switch kind {
-	case "checks":
-		column, phase = "checks_receipt", "validating"
-	case "delivery":
-		column, phase = "delivery_receipt", "delivering"
-	default:
+	if kind != "delivery" {
 		return fmt.Errorf("invalid completion receipt kind")
 	}
+	column, phase := "delivery_receipt", "delivering"
 	result, err := s.DB.ExecContext(ctx, `UPDATE assignments SET `+column+`=? WHERE id=? AND state='running' AND `+column+`='' AND EXISTS(SELECT 1 FROM assignment_attempts WHERE assignment_id=assignments.id AND phase=? AND outcome='running')`, receiptID, assignmentID, phase)
 	if err != nil {
 		return err
@@ -421,7 +416,13 @@ func (s *Store) SettleAssignment(ctx context.Context, id, state, baselineHead st
 		if err := tx.QueryRowContext(ctx, `SELECT checks_receipt,delivery_receipt FROM assignments WHERE id=?`, id).Scan(&checks, &delivery); err != nil {
 			return err
 		}
-		if prior != "running" || checks == "" || delivery == "" {
+		var verified int
+		if checks != "" {
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM check_receipts WHERE id=? AND assignment_id=? AND status IN ('passed','reused') AND candidate_digest!=''`, checks, id).Scan(&verified); err != nil {
+				return err
+			}
+		}
+		if prior != "running" || checks == "" || delivery == "" || verified != 1 {
 			return fmt.Errorf("successful assignment requires settled check and delivery receipts")
 		}
 	}

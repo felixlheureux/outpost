@@ -1410,3 +1410,25 @@ nav {
     transition-duration: 0.01ms !important;
   }
 }
+
+.work-checks {
+  display: grid;
+  gap: 0.75rem;
+}
+.work-check-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+}
+.work-check-output {
+  max-height: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 0.78rem;
+}

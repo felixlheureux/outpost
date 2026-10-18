@@ -168,7 +168,7 @@ func newServer(db *store.Store, assets fs.FS, version string, logger *slog.Logge
 		return c.JSON(200, capabilities)
 	})
 	registerActivityRoutes(e, db, stateDir, activitySlots)
-	registerWorkRoutes(e, db)
+	registerWorkRoutes(e, db, stateDir)
 	e.GET("/api/v1/projects", func(c *echo.Context) error {
 		rows, err := db.Queries.ListProjects(c.Request().Context())
 		if err != nil {

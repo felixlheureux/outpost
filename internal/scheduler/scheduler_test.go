@@ -132,7 +132,12 @@ func fixtureReceipts(ctx context.Context, db *store.Store, id string) error {
 	if err := db.AdvanceAttemptPhase(ctx, id, "implementing", "validating"); err != nil {
 		return err
 	}
-	if err := db.RecordCompletionReceipt(ctx, id, "checks", "fixture-checks-passed"); err != nil {
+	receiptID := "fixture-checks-" + id
+	_, err := db.DB.ExecContext(ctx, `INSERT INTO check_receipts(id,assignment_id,attempt_id,generation,check_id,name,required,command_json,contract_digest,input_digest,candidate_digest,status,started_at,output_path,terminal_path) SELECT ?,?,t.id,1,'fixture','Fixture',1,'{}','contract','input','candidate','passed','now',?,? FROM assignment_attempts t WHERE t.assignment_id=? AND t.phase='validating'`, receiptID, id, receiptID, receiptID, id)
+	if err != nil {
+		return err
+	}
+	if err := db.RecordCheckSuccess(ctx, id, receiptID); err != nil {
 		return err
 	}
 	if err := db.AdvanceAttemptPhase(ctx, id, "validating", "closing"); err != nil {

@@ -17,9 +17,11 @@ import {
   activityEvent,
   activityPageQuery,
   artifactPreviewQuery,
+  checkOutputQuery,
   olderActivity,
   sendWorkControl,
   sendWorkMessage,
+  type WorkOverview,
   workChangesQuery,
   workDiffQuery,
   workOverviewQuery,
@@ -485,13 +487,7 @@ export function ActivityView({ runID }: { runID: string }) {
               <ChangesPanel runID={runID} />
             </TabsContent>
             <TabsContent value="checks">
-              <div className="work-empty-panel">
-                <h3>Checks</h3>
-                <p>
-                  Runner check receipts will appear here when validation is integrated. Provider
-                  claims in Activity are not check receipts.
-                </p>
-              </div>
+              <ChecksPanel runID={runID} checks={work.data?.checks ?? []} />
             </TabsContent>
           </Tabs>
           {canContinue ? (
@@ -731,5 +727,77 @@ function ActivityReader({
         ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ChecksPanel({ runID, checks }: { runID: string; checks: WorkOverview["checks"] }) {
+  const [opened, setOpened] = useState("");
+  const output = useQuery({ ...checkOutputQuery(runID, opened), enabled: Boolean(opened) });
+  if (checks.length === 0) {
+    return (
+      <div className="work-empty-panel">
+        <h3>Checks</h3>
+        <p>No runner check receipts yet. Agent claims in Activity do not count as check results.</p>
+      </div>
+    );
+  }
+  return (
+    <section className="work-checks" aria-label="Runner check receipts">
+      {checks.map((check) => (
+        <div className="work-state" key={check.id}>
+          <div className="work-check-header">
+            <strong>{check.name || check.check_id}</strong>
+            <span>
+              {check.required ? "Required" : "Optional"} · {check.status}
+            </span>
+          </div>
+          <p>
+            {check.reason ||
+              (check.status === "reused"
+                ? "Earlier terminal evidence still matches these inputs."
+                : "Runner-owned result")}
+          </p>
+          {check.input_digest && (
+            <p className="activity-entry-meta">
+              Input {check.input_digest.slice(0, 12)} · contract{" "}
+              {check.contract_digest.slice(0, 12)}{" "}
+              {check.candidate_digest ? `· candidate ${check.candidate_digest.slice(0, 12)} ` : ""}·{" "}
+              {check.duration_ms} ms{check.exit_code !== null ? ` · exit ${check.exit_code}` : ""}
+              {check.case_count !== null ? ` · ${check.case_count} cases` : ""}
+            </p>
+          )}
+          {check.status === "running" && (
+            <p>
+              PID {check.pid} owns this workspace. On the host, run{" "}
+              <code>outpost stop --run-id {runID}</code> to interrupt the recorded worker and its
+              check.
+            </p>
+          )}
+          {check.truncated && <p>Retained output reached its 1 MiB limit.</p>}
+          {check.status !== "not-run" && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpened(opened === check.id ? "" : check.id)}
+            >
+              {opened === check.id ? "Hide output" : "View retained output"}
+            </Button>
+          )}
+          {opened === check.id && (
+            <div role="status">
+              {output.isLoading ? (
+                "Loading output…"
+              ) : output.isError ? (
+                "Retained output is unavailable."
+              ) : (
+                <pre className="work-check-output">
+                  {output.data?.output || "No output captured."}
+                </pre>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </section>
   );
 }

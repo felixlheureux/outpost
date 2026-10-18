@@ -40,10 +40,11 @@ the installer separately checks the Serve route. See INSTALL.md for the private
 integration path. The guided installer preparation is available through
 `scripts/install.sh --binary` and `outpost install --prepare`. Missing supported
 host tools are installed by default. The owned worker can run a pinned assignment
-through the installed Codex App Server. The CLI `outpost run --project ID --model
+through the installed Codex App Server. Configure a default project profile with
+`outpost checks set --project ID --file /absolute/checks.json`. The CLI `outpost run --project ID --model
 MODEL --reasoning EFFORT` reserves a run and launches its worker; choose a model
 and effort returned by the project's `/api/v1/agent/capabilities` endpoint.
-Provider handoff remains assigned until runner checks and delivery are integrated.
+Provider handoff remains assigned through runner checks and until delivery is integrated.
 While a run exists, Work shows retained activity, live turn instructions,
 stop/continue receipts, and current checkout changes. See `docs/activity.md` for
 stream and artifact bounds and `docs/work.md` for the control contract.
@@ -113,6 +114,10 @@ saved-session resume acceptance in a disposable repository. Set
 `OUTPOST_REAL_CODEX_WORK_CONTROL_TEST=1` for the full Outpost SQLite receipt,
 provider control, and linked continuation acceptance in another disposable
 repository.
+Validation uses operator-configured profiles, retained check receipts and bounded
+repair; see `docs/validation.md`. `outpost checks recover --run-id ID` can
+reconcile a terminal check after the worker stops. A local pass does not settle
+Git delivery.
 These tests do not establish production user-systemd ownership, Tailscale private
 identity, GitHub write permissions or phone acceptance. Those need separate host,
 account and device evidence.

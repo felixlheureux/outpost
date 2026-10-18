@@ -65,6 +65,36 @@ type AssignmentAttempt struct {
 	SettledAt     sql.NullString
 }
 
+type CheckReceipt struct {
+	ID              string
+	AssignmentID    string
+	AttemptID       string
+	Generation      int64
+	CheckID         string
+	Name            string
+	Required        int64
+	CommandJson     string
+	EnvJson         string
+	ContractDigest  string
+	InputDigest     string
+	CandidateDigest string
+	Status          string
+	Reason          string
+	Pid             int64
+	StartTicks      string
+	StartedAt       string
+	FinishedAt      string
+	DurationMs      int64
+	ExitCode        sql.NullInt64
+	Signal          string
+	CaseCount       sql.NullInt64
+	RequireCases    int64
+	OutputPath      string
+	TerminalPath    string
+	OutputBytes     int64
+	Truncated       int64
+}
+
 type ExecutionGeneration struct {
 	ProjectID    string
 	IssueNumber  int64
@@ -128,6 +158,18 @@ type Project struct {
 	SetupStage    string
 	SetupError    sql.NullString
 	Managed       int64
+}
+
+type ProjectCheckDefault struct {
+	ProjectID string
+	ProfileID string
+}
+
+type ProjectCheckProfile struct {
+	ProjectID    string
+	ID           string
+	ProfileJson  string
+	ConfiguredAt string
 }
 
 type ProviderAttempt struct {

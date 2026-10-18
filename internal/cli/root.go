@@ -23,6 +23,7 @@ import (
 	"github.com/felixlheureux/outpost/internal/httpapi"
 	"github.com/felixlheureux/outpost/internal/privateaccess"
 	"github.com/felixlheureux/outpost/internal/store"
+	"github.com/felixlheureux/outpost/internal/validation"
 	"github.com/felixlheureux/outpost/web"
 	"github.com/spf13/cobra"
 )
@@ -53,6 +54,16 @@ func New(out, errOut io.Writer) *cobra.Command {
 		return store.Open(ctx, stateDir)
 	}
 	root.AddCommand(&cobra.Command{Use: "version", Short: "Print the executable version", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error { _, err := fmt.Fprintln(out, Version); return err }})
+	var checkSpec string
+	child := &cobra.Command{Use: "check-child", Hidden: true, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		if checkSpec == "" {
+			return fmt.Errorf("check child spec is required")
+		}
+		return validation.Child(checkSpec)
+	}}
+	child.Flags().StringVar(&checkSpec, "spec", "", "Private check child specification")
+	root.AddCommand(child)
+	addChecks(root, &stateDir)
 	root.AddCommand(&cobra.Command{Use: "migrate", Short: "Apply schema upgrades with web/worker stopped", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		db, err := open(cmd.Context())
 		if err != nil {
