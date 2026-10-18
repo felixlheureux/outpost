@@ -7,11 +7,11 @@
 | Path | What you need | What it provides |
 | --- | --- | --- |
 | Release, normal operator path | Supported Linux/systemd host; installable host prerequisites; one-time Tailscale/Codex/GitHub access | One executable containing the dashboard UI and migrations, plus configured user services |
-| Build from source | Supported pinned Go/Node/package-manager toolchains, source checkout, build instructions established in OP-001 | The same executable, which is then passed to the normal installer |
+| Build from source | Go 1.27.2, Node 24.19.0, npm 11, Git, Make, and a source checkout | The same executable, which is then passed to the normal installer |
 
-The dashboard's release UI does not require a Vite/Node server or a Go compiler. Git, Tailscale, systemd, and the selected Codex distribution remain real host prerequisites. A provider distribution or a repository's build may independently need another runtime; doctor must say which component needs it.
+The dashboard's release UI does not require a Vite/Node server or a Go compiler. Git, Tailscale, systemd, and the selected Codex distribution remain real host prerequisites. A provider distribution or a repository's build may independently need another runtime; doctor reports which host component is missing.
 
-The initial automated package path targets Debian/Ubuntu-family Linux with systemd. The release must list the exact tested distro versions and architectures. Unsupported hosts get explicit manual prerequisites or an unsupported result, never a misleading successful installation.
+The automated package path targets Debian/Ubuntu-family Linux with systemd. The configured host was verified on Ubuntu 26.04.1 amd64. The arm64 release is cross-built and checksum-protected; execution on an arm64 host remains unverified. Unsupported hosts receive explicit prerequisites or an unsupported result.
 
 ## Normal release installation
 
@@ -41,7 +41,7 @@ This detects missing Git, `gh`, curl, Tailscale, Codex, and boot lingering, prin
 
 ### 2. Let the installer inspect and install prerequisites
 
-The installer must inspect before changing anything, reuse compatible tools, and show the missing prerequisites and scoped installation action:
+The installer inspects before changing anything, reuses compatible tools, and shows missing prerequisites and scoped installation actions:
 
 - Git, official GitHub CLI (`gh`), and required system packages.
 - User systemd manager and boot/linger requirements for the selected installation user.
@@ -86,9 +86,9 @@ Default layout:
 | User service | `~/.config/systemd/user/outpost.service` |
 | Executable | Selected user binary directory; the installer prints the actual path |
 
-The installer finishes by printing the verified private HTTPS dashboard URL and concise diagnostics. It must not print a generic example URL and claim that is the installed address.
+The installer prints the verified private HTTPS dashboard URL and concise diagnostics for the installed address.
 
-The expected operational commands, once implemented and installed, are:
+Operational commands are:
 
 ```sh
 outpost doctor
@@ -125,7 +125,7 @@ Open **http://127.0.0.1:8080** on the same machine. This is a local preview, wit
 
 `./bin/outpost doctor` checks installed Git, existing GitHub/Codex/Tailscale access, the user systemd bus, boot lingering, and the configured private Serve route. Optional `--repo https://github.com/owner/repo` checks repository read access. These checks do not install anything, prove write permissions, configure Serve, or establish worker readiness. No authentication is needed to build or view the local empty shell.
 
-Do not expose development mode through a proxy or public listener. Private `serve`, a preparation-stage `install`, read-only `status`, and a guarded `stop --run-id` are available. The owned worker can run a pinned Codex assignment through validation, selected Git delivery, and local completion. Real account and owner-device acceptance still require a configured private host journey. See docs/delivery.md for reporting and recovery. The built binary is the installer input for OP-002. See docs/development.md for checks and docs/dependencies.md for the sign-in contract.
+Do not expose development mode through a proxy or public listener. Private `serve`, `install`, read-only `status`, and guarded `stop --run-id` are available. The owned worker runs a pinned Codex assignment through validation, selected Git delivery, local completion, and independent GitHub reporting. See docs/delivery.md for reporting and recovery. Supply the built binary to `scripts/install.sh --binary` for source installation. See docs/development.md for checks and docs/dependencies.md for the sign-in contract.
 
 ### Manually exercise the private request boundary
 
@@ -166,7 +166,7 @@ Closing a browser does not stop a coding run. A web restart must not kill an ind
 
 ## Reinstall and update
 
-Re-running installation must preserve configuration, routes, identities, projects, queues, history, and unfinished work. It reconciles completed installation phases rather than deleting and rebuilding state.
+Re-running installation preserves configuration, routes, identities, projects, queues, history, and unfinished work. It reconciles completed installation phases without rebuilding state.
 
 The current `outpost install` refuses a differing installed binary unless `--upgrade` is supplied with a matching private backup. Finish/stop work and inspect `outpost status` until there is no active or unresolved run. Stop the web service, create the backup below, then run the new release bootstrap with `--upgrade --backup-dir "$BACKUP"` (or use `scripts/install.sh --binary /absolute/path/to/new/outpost` with those flags). The installer checks the backup manifest and idle state before atomically replacing the binary, saves the old executable as `previous-outpost` in the backup, applies supported migrations, starts the user service, and verifies the private URL. An unchanged reinstall remains idempotent. Keep the backup until the new service is verified; if migration fails, inspect the retained backup and previous binary before recovery. Migration refuses a reserved worker/check or an active web unit serving the same state directory; a newer unsupported schema also fails.
 
@@ -187,4 +187,12 @@ Before a live restore, copy the backup's `state` directory to a disposable locat
 
 ## Removal boundaries
 
-Stopping/removing Outpost services is separate from deleting data. Retain project checkouts/history/configuration by default and identify any configured Serve route precisely before changing it. Never reset unrelated Tailscale routes or recursively delete user work as an ordinary uninstall step. OP-002/016 must document actual supported removal commands when implemented.
+Stop any recorded worker through `outpost stop --run-id RUN_ID` and wait for `outpost status` to show no active or unresolved run. Then stop and disable only Outpost's web unit:
+
+```sh
+systemctl --user disable --now outpost.service
+rm -- "$HOME/.config/systemd/user/outpost.service"
+systemctl --user daemon-reload
+```
+
+Keep `~/.config/outpost`, `~/.local/state/outpost`, and `~/.local/share/outpost/workspaces` as the default; they contain configuration, receipts, and possibly unpushed work. Inspect `tailscale serve status --json` before removing a route. Remove only the root handler that still proxies to this Outpost installation; leave unrelated Serve routes and Tailscale login intact. Keep the executable and private backup until recovery is no longer needed.

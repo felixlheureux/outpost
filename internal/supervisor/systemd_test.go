@@ -76,5 +76,9 @@ func TestRealUserSystemdWorkerSurvivesWebRestart(t *testing.T) {
 	if err := Stop(ctx, db, state, run.ID); err != nil {
 		t.Fatal("stop fixture worker:", err)
 	}
-	waitState("interrupted")
+	waitState("stopped")
+	stopped, err := db.GetRun(ctx, run.ID)
+	if err != nil || stopped.ReservationState != "released" {
+		t.Fatalf("fixture worker did not release its slot: %+v %v", stopped, err)
+	}
 }
