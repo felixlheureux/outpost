@@ -45,7 +45,7 @@ function HistoryPage() {
     enabled: showDiagnostics,
   });
   return (
-    <section className="page">
+    <section className="page history-page">
       <div className="page-title">
         <div>
           <p className="eyebrow">{project?.name ?? "Results"}</p>
@@ -132,7 +132,7 @@ function HistoryPage() {
         </div>
       ) : null}
       {list.data?.runs.map((run) => (
-        <div className="work-state" key={run.id}>
+        <div className="work-state history-run" key={run.id}>
           <div className="work-control-row">
             <Button
               variant={selectedRun === run.id ? "secondary" : "outline"}
@@ -156,7 +156,7 @@ function HistoryPage() {
             </p>
           ) : null}
           {selectedRun === run.id ? (
-            <div className="work-layout">
+            <div className="history-detail">
               {detail.isLoading ? <p>Loading retained receipts…</p> : null}
               {detail.isError ? (
                 <p role="alert">Details are unavailable: {detail.error.message}</p>

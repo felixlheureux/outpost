@@ -37,9 +37,9 @@ arm64 executables plus the maintenance backup script under `dist/`. A pushed
 the source gates pass. The local cross build verifies arm64 compilation; it does
 not prove arm64 execution or a clean-host install.
 
-The [v0.1.0-rc1](https://github.com/felixlheureux/outpost/releases/tag/v0.1.0-rc1)
-asset has been installed on the configured host; clean-host installation and the
-complete owner journey remain outstanding. See the current
+The [v0.1.0-rc4](https://github.com/felixlheureux/outpost/releases/tag/v0.1.0-rc4)
+asset has been installed on the configured host; a separate clean-host install
+and some owner-device controls remain unverified. See the current
 [release evidence](release-evidence.md) and [installation guide](../INSTALL.md).
 
 `--state-dir /absolute/private/path` is a persistent flag for migrate/serve. State

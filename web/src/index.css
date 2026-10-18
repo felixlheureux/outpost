@@ -711,6 +711,10 @@ nav {
   border-radius: 8px;
   background: var(--card);
 }
+.history-page > .work-state {
+  width: 100%;
+  margin-bottom: 14px;
+}
 #main-content .work-state h2 {
   font-size: 18px;
   font-weight: 600;
@@ -747,11 +751,11 @@ nav {
     grid-template-columns: minmax(0, 1fr) 250px;
     align-items: start;
   }
-  .work-primary {
+  .work-layout > .work-primary {
     grid-column: 1;
     grid-row: 1;
   }
-  .work-brief {
+  .work-layout > .work-brief {
     grid-column: 2;
     grid-row: 1;
     position: sticky;
@@ -915,6 +919,26 @@ nav {
 .work-receipts small {
   grid-column: 2;
   color: var(--muted-foreground);
+}
+.history-detail {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 12px;
+  margin-top: 8px;
+}
+.history-detail > .work-brief {
+  display: grid;
+  gap: 10px;
+}
+.history-detail .work-receipts {
+  max-height: none;
+  overflow: visible;
+  margin-top: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
 }
 .work-control-receipts {
   display: flex;

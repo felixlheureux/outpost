@@ -44,7 +44,12 @@ test("history keeps old attempts read only and exposes recovery evidence", async
     }),
   );
   await page.route("**/api/v1/history?project=p&offset=0", (route) =>
-    route.fulfill({ json: { runs: [run], next_offset: 1 } }),
+    route.fulfill({
+      json: {
+        runs: [run, { ...run, id: "older-run", schedule_reason: "Earlier run completed" }],
+        next_offset: 2,
+      },
+    }),
   );
   await page.route("**/api/v1/history/old-run", (route) =>
     route.fulfill({
@@ -207,7 +212,7 @@ test("history keeps old attempts read only and exposes recovery evidence", async
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto("/history?project=p");
   await expect(page.getByText("provider session unavailable")).toBeVisible();
-  await page.getByRole("button", { name: "View details" }).click();
+  await page.getByRole("button", { name: "View details" }).first().click();
   await expect(page.getByText("Attempt 2 · blocked")).toBeVisible();
   await expect(page.getByText("Attempt 1 · interrupted")).toBeVisible();
   await expect(page.getByText(/turn: turn-2/)).toBeVisible();
@@ -217,6 +222,14 @@ test("history keeps old attempts read only and exposes recovery evidence", async
   await expect(
     page.getByText("Historical receipts are read only. Controls belong to current Work."),
   ).toBeVisible();
+  const runCards = page.locator(".history-run");
+  await expect(runCards).toHaveCount(2);
+  const cardGap = await runCards.evaluateAll((cards) => {
+    const first = cards[0].getBoundingClientRect();
+    const second = cards[1].getBoundingClientRect();
+    return second.top - first.bottom;
+  });
+  expect(cardGap).toBeGreaterThanOrEqual(12);
   await expect(page.getByRole("button", { name: "Interrupt now" })).toHaveCount(0);
   await page.getByRole("button", { name: "Connection and storage" }).click();
   await expect(page.getByText(/Tailscale: node matches configuration/)).toBeVisible();
@@ -224,4 +237,13 @@ test("history keeps old attempts read only and exposes recovery evidence", async
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: "/tmp/outpost-history-320.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const sectionGap = await page.locator(".history-detail > .work-brief").evaluateAll((sections) => {
+    const first = sections[0].getBoundingClientRect();
+    const second = sections[1].getBoundingClientRect();
+    return second.top - first.bottom;
+  });
+  expect(sectionGap).toBeGreaterThanOrEqual(12);
+  await page.screenshot({ path: "/tmp/outpost-history-1440.png", fullPage: true });
 });
