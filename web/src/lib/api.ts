@@ -99,6 +99,23 @@ export function retryRepositorySetup(projectID: string) {
   );
 }
 
+export const issueRequirements = z.object({
+  title: z.string(),
+  outcome: z.string(),
+  criteria: z.array(z.string()),
+  notes: z.string(),
+  settings: z.object({
+    outpost_task: z.number().optional(),
+    kind: z.string(),
+    depends_on: z.array(z.number()).nullable().optional(),
+    hold_reason: z.string().nullable().optional(),
+    check_profile: z.string(),
+    delivery: z.string(),
+    review: z.string(),
+  }),
+  has_settings: z.boolean(),
+});
+
 export const issueSource = z.object({
   source: z.object({
     state: z.enum(["not_synced", "ready", "needs_attention"]),
@@ -116,7 +133,7 @@ export const issueSource = z.object({
       content_digest: z.string(),
       fetched_at: z.string(),
       local_revision: z.number().int().positive(),
-      requirements: z.unknown().nullable(),
+      requirements: issueRequirements.nullable(),
       parse_error: z.string(),
       stale: z.boolean(),
     }),

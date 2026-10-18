@@ -2,6 +2,16 @@ import { expect, test } from "@playwright/test";
 
 test("issue edit conflict keeps the draft across navigation", async ({ page }) => {
   const timestamp = "2026-10-17T12:00:00Z";
+  await page.route("**/api/v1/bootstrap", (route) =>
+    route.fulfill({
+      json: {
+        version: "test",
+        mode: "development",
+        current_run: null,
+        capabilities: { repository_setup: true, execution: false },
+      },
+    }),
+  );
   const issue = {
     number: 7,
     url: "https://github.com/owner/repo/issues/7",
@@ -46,6 +56,14 @@ test("issue edit conflict keeps the draft across navigation", async ({ page }) =
   await page.route("**/api/v1/projects/project_7/issues/sync", (route) =>
     route.fulfill({ json: { observed: 1 } }),
   );
+  await page.route("**/api/v1/projects/project_7/queue", (route) =>
+    route.fulfill({
+      json: { sha: "sha-1", issues: [7], state: "ready", fetched_at: timestamp, last_error: "" },
+    }),
+  );
+  await page.route("**/api/v1/projects/project_7/queue/operations", (route) =>
+    route.fulfill({ json: { operations: [] } }),
+  );
   await page.route("**/api/v1/projects/project_7/issues/7", async (route) => {
     const body = route.request().postDataJSON();
     expect(body.title).toBe("Revised title");
@@ -66,8 +84,9 @@ test("issue edit conflict keeps the draft across navigation", async ({ page }) =
     });
   });
   await page.goto("/");
-  await expect(page.getByText("Original title")).toBeVisible();
-  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("button", { name: /#7 Original title/ })).toBeVisible();
+  await page.getByRole("button", { name: /#7 Original title/ }).click();
+  await page.getByRole("button", { name: "Edit task" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Title").fill("Revised title");
   await dialog.getByLabel("Specification").fill("Unsent changes");
@@ -76,7 +95,7 @@ test("issue edit conflict keeps the draft across navigation", async ({ page }) =
   await dialog.locator("form").getByRole("button", { name: "Close" }).click();
   await page.getByRole("link", { name: "Work", exact: true }).click();
   await page.getByRole("link", { name: "Queue", exact: true }).click();
-  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByRole("button", { name: "Edit task" }).click();
   await expect(dialog.getByLabel("Title")).toHaveValue("Revised title");
   await expect(dialog.getByLabel("Specification")).toHaveValue("Unsent changes");
 });

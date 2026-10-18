@@ -1,10 +1,14 @@
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
 import { ArrowUpRight, GitBranch, GitFork, ListOrdered, Play } from "lucide-react";
-import { useIssueEditor, useSetup } from "@/components/shell";
+import { type FormEvent, useState } from "react";
+import { useSetup } from "@/components/shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { QueueManifest } from "@/features/queue/queue-manifest";
 import {
+  addRepository,
+  bootstrapQuery,
   inspectIssueOperation,
   issueOperationsQuery,
   projectIssuesQuery,
@@ -17,15 +21,30 @@ export const Route = createFileRoute("/")({ component: Queue });
 
 function Queue() {
   const { data } = useSuspenseQuery(projectsQuery);
+  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery);
   const selectedProjectID = useRouterState({ select: (state) => state.location.search.project });
   const project = data.projects.find((item) => item.id === selectedProjectID) ?? data.projects[0];
   const openSetup = useSetup();
-  const openIssueEditor = useIssueEditor();
+  const navigate = useNavigate();
+  const [repositoryURL, setRepositoryURL] = useState("");
   const queryClient = useQueryClient();
   const retry = useMutation({
     mutationFn: retryRepositorySetup,
     onSettled: () => queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey }),
   });
+  const add = useMutation({
+    mutationFn: () => addRepository(repositoryURL.trim()),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey }),
+    onSuccess: async (newProject) => {
+      await queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey });
+      await navigate({ to: "/", search: { project: newProject.id } });
+      setRepositoryURL("");
+    },
+  });
+  function submitRepository(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    add.mutate();
+  }
   const issueQuery = useQuery({
     ...projectIssuesQuery(project?.id ?? ""),
     enabled: Boolean(project),
@@ -92,32 +111,27 @@ function Queue() {
           </article>
         </div>
         <QueueManifest
+          key={project.id}
           projectID={project.id}
+          projectName={project.name}
           repositoryURL={project.repository_url}
           issues={issueQuery.data?.issues ?? []}
+          currentRun={bootstrap.current_run}
         />
-        <div className="issue-source-panel">
-          <div className="issue-source-heading">
-            <div>
-              <p className="eyebrow">GitHub source</p>
-              <h2 className="issue-source-title">Issues</h2>
-            </div>
-            <div className="issue-source-actions">
-              <Button variant="outline" onClick={() => openIssueEditor(project.id, project.name)}>
-                Create issue
-              </Button>
-              <Button
-                variant="outline"
-                disabled={sync.isPending}
-                onClick={() => sync.mutate(project.id)}
-              >
-                {sync.isPending ? "Syncing…" : "Sync issues"}
-              </Button>
-            </div>
+        <details className="issue-source-panel">
+          <summary>GitHub issue sync and recent changes</summary>
+          <div className="issue-source-actions">
+            <Button
+              variant="outline"
+              disabled={sync.isPending}
+              onClick={() => sync.mutate(project.id)}
+            >
+              {sync.isPending ? "Syncing…" : "Sync issues"}
+            </Button>
           </div>
           <p className="issue-source-note">
             {issueQuery.data?.source.state === "ready"
-              ? `Cached ${issueQuery.data.issues.length} issues.`
+              ? `Last successful sync: ${issueQuery.data.source.last_success_at}`
               : issueQuery.data?.source.last_error || "Issue source has not been synchronized yet."}
           </p>
           {sync.isError && (
@@ -130,64 +144,31 @@ function Queue() {
               {issueQuery.error.message}
             </p>
           )}
-          {issueQuery.data && issueQuery.data.issues.length > 0 && (
-            <div className="issue-list">
-              {issueQuery.data.issues.map((issue) => (
-                <div className="issue-row" key={issue.number}>
-                  <span>#{issue.number}</span>
-                  <a href={issue.url} target="_blank" rel="noreferrer">
-                    <strong>{issue.title}</strong>
-                  </a>
-                  <small>
-                    {issue.parse_error ||
-                      (issue.stale
-                        ? "Not seen in latest sync · inspect source"
-                        : issue.state === "closed"
-                          ? "Closed on GitHub · unverified"
-                          : "Open")}
-                  </small>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => openIssueEditor(project.id, project.name, issue)}
-                  >
-                    Edit
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-          {operationsQuery.data && operationsQuery.data.operations.length > 0 && (
-            <div className="issue-receipts">
-              <h3>Recent issue changes</h3>
-              {operationsQuery.data.operations.map((operation) => (
-                <div key={operation.id} className="issue-receipt">
-                  <span>
-                    {operation.kind === "create" ? "Created" : "Edited"} issue{" "}
-                    {operation.result_number || operation.issue_number || ""}
-                  </span>
-                  <span>{operation.state}</span>
-                  {operation.reason && <small>{operation.reason}</small>}
-                  {(operation.state === "unknown" || operation.state === "pending") && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={inspect.isPending}
-                      onClick={() => inspect.mutate(operation.request_key)}
-                    >
-                      Inspect GitHub
-                    </Button>
-                  )}
-                </div>
-              ))}
-              {inspect.isError && (
-                <p role="alert" className="form-error">
-                  {inspect.error.message}
-                </p>
+          {operationsQuery.data?.operations.map((operation) => (
+            <div key={operation.id} className="issue-receipt">
+              <span>
+                {operation.kind} #{operation.result_number || operation.issue_number || ""}:{" "}
+                {operation.state}
+              </span>
+              {operation.reason && <small>{operation.reason}</small>}
+              {(operation.state === "unknown" || operation.state === "pending") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={inspect.isPending}
+                  onClick={() => inspect.mutate(operation.request_key)}
+                >
+                  Inspect GitHub
+                </Button>
               )}
             </div>
+          ))}
+          {inspect.isError && (
+            <p role="alert" className="form-error">
+              {inspect.error.message}
+            </p>
           )}
-        </div>
+        </details>
       </section>
     );
   return (
@@ -211,9 +192,32 @@ function Queue() {
             Connect a GitHub repository to keep its tasks, coding sessions, and results in one
             place.
           </p>
-          <Button size="lg" onClick={openSetup}>
-            <GitFork size={17} />
-            Add repository
+          <form className="onboarding-form" onSubmit={submitRepository}>
+            <label htmlFor="first-repository-url">GitHub repository URL</label>
+            <Input
+              id="first-repository-url"
+              type="url"
+              required
+              placeholder="https://github.com/owner/repo"
+              value={repositoryURL}
+              onChange={(event) => setRepositoryURL(event.target.value)}
+            />
+            <Button type="submit" disabled={add.isPending}>
+              {add.isPending ? "Adding repository…" : "Add"}
+            </Button>
+          </form>
+          {add.isPending && (
+            <p role="status">
+              Inspecting repository and preparing the managed checkout. This may take a moment.
+            </p>
+          )}
+          {add.isError && (
+            <p role="alert" className="form-error">
+              {add.error.message}
+            </p>
+          )}
+          <Button variant="ghost" onClick={openSetup}>
+            More setup options
           </Button>
           <span className="quiet-note">One host. Separate projects. One active coding task.</span>
         </div>

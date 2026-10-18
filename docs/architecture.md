@@ -5,7 +5,8 @@ The starter implements the local shell and persistence boundary. The current
 implementation adds a pinned Tailscale operator boundary, a preparation-stage
 private web service, worker ownership fixtures, managed GitHub cloning and an
 issue source projection with durable create/edit receipts, and a GitHub planning
-queue projection with durable edit receipts. Codex work is not yet integrated.
+queue projection with durable edit receipts, and the Queue/Inbox workspace with
+task inspection and an honest disabled start panel. Codex work is not yet integrated.
 The complete behavior contract remains the technical specification.
 
 ## Follow a request
@@ -80,6 +81,10 @@ data; the router receives the same QueryClient and preloads through
 `ensureQueryData`. Do not create a second route cache of project/run objects.
 React owns transient drafts. The Add repository dialog stays mounted at the root,
 so closing it or navigating between Queue/Work/History preserves the typed URL.
+Issue drafts are keyed by repository and issue in the shell. Queue tab, selection,
+and list position are per-repository browser session state. The selected issue's
+number, content digest, and local revision are the source identity available for
+OP-007's immutable assignment; no start request is sent by the current UI.
 There is no Redux/Zustand, SSR framework, or independent frontend backend.
 
 Use the CSS tokens in `index.css` and shadcn variants. Keep the compact sidebar,
@@ -97,3 +102,5 @@ registration and guarded setup retry are available.
 OP-005: verify a real GitHub planning-branch read/write and source setup with the
 service user's account. The local implementation uses fixture GitHub responses.
 OP-007/008: add scheduler/provider lifecycles without binding them to HTTP contexts.
+OP-007 should return effective model, reasoning, permissions, branch, and delivery
+readiness before enabling Start; the current panel labels these values unavailable.

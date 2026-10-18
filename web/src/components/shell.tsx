@@ -29,7 +29,8 @@ export function useSetup() {
   return useContext(SetupContext);
 }
 const IssueEditorContext = createContext<
-  ((projectID: string, projectName: string, issue?: IssueSource) => void) | null
+  | ((projectID: string, projectName: string, issue?: IssueSource, showPolicy?: boolean) => void)
+  | null
 >(null);
 export function useIssueEditor() {
   const open = useContext(IssueEditorContext);
@@ -59,8 +60,10 @@ export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const [url, setURL] = useState("");
-  const [issueDraft, setIssueDraft] = useState<IssueDraft | null>(null);
+  const [issueDrafts, setIssueDrafts] = useState<Record<string, IssueDraft>>({});
+  const [activeIssueKey, setActiveIssueKey] = useState("");
   const [issueEditorOpen, setIssueEditorOpen] = useState(false);
+  const [showIssuePolicy, setShowIssuePolicy] = useState(false);
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
   const title = pathname === "/work" ? "Work" : pathname === "/history" ? "History" : "Queue";
   function toggleTheme() {
@@ -77,25 +80,45 @@ export function Shell({ children }: { children: ReactNode }) {
     setHasOpened(true);
     setOpen(true);
   }
-  function openIssueEditor(projectID: string, projectName: string, issue?: IssueSource) {
-    if (
-      !issueDraft ||
-      (issueDraft.projectID === projectID && issueDraft.number === (issue?.number ?? 0))
-    ) {
-      setIssueDraft(
-        issueDraft ?? {
-          projectID,
-          projectName,
-          number: issue?.number ?? 0,
-          title: issue?.title ?? "",
-          body: issue?.body ?? "",
-          expectedDigest: issue?.content_digest ?? "",
-          expectedRevision: issue?.local_revision ?? 0,
-          requestKey: "",
-        },
-      );
-    }
+  function openIssueEditor(
+    projectID: string,
+    projectName: string,
+    issue?: IssueSource,
+    showPolicy = false,
+  ) {
+    setShowIssuePolicy(showPolicy);
+    const key = `${projectID}:${issue?.number ?? 0}`;
+    setActiveIssueKey(key);
+    setIssueDrafts((drafts) => ({
+      ...drafts,
+      [key]: drafts[key] ?? {
+        projectID,
+        projectName,
+        number: issue?.number ?? 0,
+        title: issue?.title ?? "",
+        body: issue?.body ?? "",
+        outcome: issue?.requirements?.outcome ?? "",
+        criteria: issue?.requirements?.criteria.join("\n") ?? "",
+        notes: issue?.requirements?.notes ?? "",
+        dependencies: issue?.requirements?.settings.depends_on?.join(", ") ?? "",
+        holdReason: issue?.requirements?.settings.hold_reason ?? "",
+        checkProfile: issue?.requirements?.settings.check_profile ?? "inherit",
+        delivery: issue?.requirements?.settings.delivery ?? "inherit",
+        review: issue?.requirements?.settings.review ?? "inherit",
+        expectedDigest: issue?.content_digest ?? "",
+        expectedRevision: issue?.local_revision ?? 0,
+        requestKey: "",
+      },
+    }));
     setIssueEditorOpen(true);
+  }
+  function updateIssueDraft(draft: IssueDraft | null) {
+    setIssueDrafts((drafts) => {
+      const next = { ...drafts };
+      if (draft) next[activeIssueKey] = draft;
+      else delete next[activeIssueKey];
+      return next;
+    });
   }
   return (
     <SetupContext value={openSetup}>
@@ -187,8 +210,8 @@ export function Shell({ children }: { children: ReactNode }) {
             </header>
             <div className="starter-notice">
               <span className="notice-dot" />
-              Repository setup and issue sourcing are available. Shared queue and coding runs are
-              still being built.
+              Repository setup, issue sourcing, and the shared queue are available. Coding runs are
+              not connected yet.
             </div>
             <main id="main-content">{children}</main>
             <footer className="run-bar">
@@ -219,10 +242,12 @@ export function Shell({ children }: { children: ReactNode }) {
             />
           )}
           <IssueEditor
+            key={activeIssueKey}
             open={issueEditorOpen}
             onOpenChange={setIssueEditorOpen}
-            draft={issueDraft}
-            onDraftChange={setIssueDraft}
+            draft={issueDrafts[activeIssueKey] ?? null}
+            onDraftChange={updateIssueDraft}
+            showPolicy={showIssuePolicy}
           />
         </div>
       </IssueEditorContext>
