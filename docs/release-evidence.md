@@ -28,7 +28,9 @@ private URL returned 200 and showed four run cards, 14px card gaps, and 12px
 detail-section gaps at 390 and 1440 CSS pixels. The first run's 99 activity
 events were initially collapsed; when opened, the scrolling list stayed 306px
 tall at both widths. The installed binary reported `v0.1.0-rc5`, and two
-registered projects remained available.
+registered projects remained available. The deployed Queue, Work, and History
+routes each returned 200 with no document-level horizontal overflow at 320,
+390, 768, 820, 1024, and 1440 CSS pixels.
 
 On October 18, 2026, the first live Outpost owner run,
 `run_b0c92818d8a333da5238cf53c99f3632`, completed issue #19. The issue was seen
