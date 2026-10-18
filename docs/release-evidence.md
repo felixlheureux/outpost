@@ -23,7 +23,12 @@ The deployed browser showed four real History run cards; at 390 and 1440 CSS
 pixels the measured card gap was 14px and the expanded-section gap was 12px.
 The real activity list crowded out receipts, so `v0.1.0-rc5` keeps it in an
 expandable, bounded section. Its release asset was then verified and installed
-from a fresh idle backup on this same host.
+from a fresh idle backup on this same host. A browser against the deployed
+private URL returned 200 and showed four run cards, 14px card gaps, and 12px
+detail-section gaps at 390 and 1440 CSS pixels. The first run's 99 activity
+events were initially collapsed; when opened, the scrolling list stayed 306px
+tall at both widths. The installed binary reported `v0.1.0-rc5`, and two
+registered projects remained available.
 
 On October 18, 2026, the first live Outpost owner run,
 `run_b0c92818d8a333da5238cf53c99f3632`, completed issue #19. The issue was seen
